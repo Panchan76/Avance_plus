@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "581291472838",
+    "project_id": "avanceplus-36d4d",
+    "storage_bucket": "avanceplus-36d4d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:581291472838:android:9db4c2fe5155d56910a4c7",
+        "android_client_info": {
+          "package_name": "com.example.avance_plus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzSoyc0I6rZ6gZejOG_x1g9l_sfigye4U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
