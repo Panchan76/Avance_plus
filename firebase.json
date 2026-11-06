@@ -1,1 +1,32 @@
+<<<<<<< HEAD
 {"flutter":{"platforms":{"android":{"default":{"projectId":"avanceplus-36d4d","appId":"1:581291472838:android:9db4c2fe5155d56910a4c7","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"avanceplus-36d4d","configurations":{"android":"1:581291472838:android:9db4c2fe5155d56910a4c7","ios":"1:581291472838:ios:c9fc1c6da333a84810a4c7","macos":"1:581291472838:ios:c9fc1c6da333a84810a4c7","web":"1:581291472838:web:01f22d1c0e8c2b1b10a4c7","windows":"1:581291472838:web:9b6814ce1255c80510a4c7"}}}}}}
+=======
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "avanceplus-36d4d",
+          "appId": "1:581291472838:android:9db4c2fe5155d56910a4c7",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "avanceplus-36d4d",
+          "configurations": {
+            "android": "1:581291472838:android:9db4c2fe5155d56910a4c7",
+            "ios": "1:581291472838:ios:c9fc1c6da333a84810a4c7",
+            "macos": "1:581291472838:ios:c9fc1c6da333a84810a4c7",
+            "web": "1:581291472838:web:01f22d1c0e8c2b1b10a4c7",
+            "windows": "1:581291472838:web:9b6814ce1255c80510a4c7"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
+>>>>>>> 6975be9 ( segundo commit)
