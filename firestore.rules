@@ -2,28 +2,187 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
-      function owner() {
-        return request.auth != null && request.auth.uid == userId;
-      }
-      function validProfile() {
-        let d = request.resource.data;
-        return d.keys().hasAll(['uid', 'email', 'name', 'role', 'createdAt'])
-          && d.keys().hasOnly(['uid', 'email', 'name', 'role', 'createdAt', 'cnpj'])
-          && d.uid == userId
-          && d.email is string && d.email == request.auth.token.email
-          && d.name is string && d.name.size() >= 2 && d.name.size() <= 120
-          && d.role in ['candidate', 'company']
-          && d.createdAt == request.time
-          && ((d.role == 'candidate' && !('cnpj' in d))
-            || (d.role == 'company' && d.cnpj is string
-              && d.cnpj.size() > 0 && d.cnpj.size() <= 32));
-      }
+      function owner() { return request.auth != null && request.auth.uid == userId; }
       allow get: if owner();
-      allow create: if owner() && validProfile();
-      // Editing/deletion are not part of this release. Roles cannot be changed.
-      allow list, update, delete: if false;
+      // Companies register directly; CNPJ is declared, not officially verified.
+      allow create: if owner()
+        && request.resource.data.keys().hasAll(['uid','email','name','role','createdAt'])
+        && request.resource.data.keys().hasOnly(['uid','email','name','role','createdAt','cnpj'])
+        && request.resource.data.uid == userId
+        && request.resource.data.email == request.auth.token.email
+        && ((request.resource.data.role == 'candidate' && !('cnpj' in request.resource.data))
+          || (request.resource.data.role == 'company'
+            && request.resource.data.cnpj is string && request.resource.data.cnpj.size() > 0
+            && request.resource.data.cnpj.size() <= 32))
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 120
+        && request.resource.data.createdAt == request.time;
+      allow update: if owner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','phone','city','contactEmail','updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 120
+        && request.resource.data.phone is string && request.resource.data.phone.size() <= 32
+        && request.resource.data.city is string && request.resource.data.city.size() <= 120
+        && request.resource.data.contactEmail is string && request.resource.data.contactEmail.size() <= 200
+        && request.resource.data.updatedAt == request.time;
+      allow list, delete: if false;
+      match /settings/{settingId} {
+        allow read: if owner() && settingId == 'accessibility';
+        allow create, update: if owner() && settingId == 'accessibility'
+          && request.resource.data.keys().hasOnly(['largeText'])
+          && request.resource.data.keys().hasAll(['largeText'])
+          && request.resource.data.largeText is bool;
+        allow delete: if false;
+      }
     }
-    // Add specific rules when vacancies/applications are connected later.
+    function signedIn() { return request.auth != null; }
+    function hasRole(role) {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    function initialRole(id) {
+      return id in ['carpinteiro', 'jardineiro', 'cozinheiro', 'costureiro', 'recepcionista', 'artesao'];
+    }
+    function approvedRole(id) {
+      return id is string && (initialRole(id) ||
+        get(/databases/$(database)/documents/career_roles/$(id)).data.status == 'approved');
+    }
+    match /career_roles/{roleId} {
+      allow read: if signedIn() && (resource.data.status == 'approved' || resource.data.requestedBy == request.auth.uid);
+      allow create: if hasRole('company') && !initialRole(roleId)
+        && request.resource.data.keys().hasAll(['title', 'description', 'requestedBy', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['title', 'description', 'requestedBy', 'status', 'createdAt'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 80
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10 && request.resource.data.description.size() <= 1000
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      // Approval/rejection is performed exclusively via the administrative console.
+      // Client apps cannot change status, even for the requesting company.
+      allow update, delete: if false;
+    }
+    match /resumes/{userId} {
+      function owner() { return signedIn() && request.auth.uid == userId && hasRole('candidate'); }
+      function validResume() {
+        let d = request.resource.data;
+        return d.keys().hasAll(['uid','name','email','phone','city','summary','experience','education','skills','roleIds','shared','updatedAt'])
+          && d.keys().hasOnly(['uid','name','email','phone','city','summary','experience','education','skills','roleIds','shared','updatedAt'])
+          && d.uid == userId
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+          && d.email is string && d.email.size() > 0 && d.email.size() <= 200
+          && d.phone is string && d.phone.size() <= 32
+          && d.city is string && d.city.size() > 0 && d.city.size() <= 120
+          && d.summary is string && d.summary.size() <= 1000
+          && d.experience is string && d.experience.size() <= 4000
+          && d.education is string && d.education.size() <= 2000
+          && d.skills is string && d.skills.size() <= 2000
+          && d.shared is bool && d.updatedAt == request.time
+          && d.roleIds is list && d.roleIds.size() <= 5
+          && d.roleIds.toSet().size() == d.roleIds.size()
+          && (!d.shared || d.roleIds.size() > 0)
+          && (d.roleIds.size() < 1 || approvedRole(d.roleIds[0]))
+          && (d.roleIds.size() < 2 || approvedRole(d.roleIds[1]))
+          && (d.roleIds.size() < 3 || approvedRole(d.roleIds[2]))
+          && (d.roleIds.size() < 4 || approvedRole(d.roleIds[3]))
+          && (d.roleIds.size() < 5 || approvedRole(d.roleIds[4]));
+      }
+      allow get: if owner() || (hasRole('company') && resource.data.shared == true);
+      allow list: if hasRole('company') && resource.data.shared == true;
+      allow create, update: if owner() && validResume();
+      allow delete: if owner();
+    }
+
+    function chatMember(d) {
+      return signedIn() && (d.companyId == request.auth.uid || d.candidateId == request.auth.uid);
+    }
+    function chatData(id) {
+      return get(/databases/$(database)/documents/conversations/$(id)).data;
+    }
+    match /conversations/{conversationId} {
+      allow get: if (signedIn() && !exists(/databases/$(database)/documents/conversations/$(conversationId)) && hasRole('company')) || chatMember(resource.data);
+      allow list: if chatMember(resource.data);
+      allow create: if hasRole('company')
+        && request.resource.data.keys().hasAll(['companyId','candidateId','companyName','candidateName','createdAt','updatedAt'])
+        && request.resource.data.keys().hasOnly(['companyId','candidateId','companyName','candidateName','createdAt','updatedAt'])
+        && request.resource.data.companyId == request.auth.uid
+        && conversationId == string(request.auth.uid.size()) + '_' + request.auth.uid + '_' + request.resource.data.candidateId
+        && request.resource.data.candidateId is string
+        && request.resource.data.candidateId != request.auth.uid
+        && get(/databases/$(database)/documents/users/$(request.resource.data.candidateId)).data.role == 'candidate'
+        && get(/databases/$(database)/documents/resumes/$(request.resource.data.candidateId)).data.shared == true
+        && request.resource.data.companyName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+        && request.resource.data.candidateName == get(/databases/$(database)/documents/resumes/$(request.resource.data.candidateId)).data.name
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if chatMember(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+      match /messages/{messageId} {
+        allow read: if chatMember(chatData(conversationId));
+        allow create: if chatMember(chatData(conversationId))
+          && request.resource.data.keys().hasAll(['senderId','text','createdAt'])
+          && request.resource.data.keys().hasOnly(['senderId','text','createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 3000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+    match /interviews/{interviewId} {
+      function shape(d) {
+        return d.keys().hasAll(['conversationId','companyId','candidateId','companyName','candidateName','title','location','startAt','durationMinutes','status','proposedAt','responseNote','revision','updatedBy','createdAt','updatedAt'])
+          && d.keys().hasOnly(['conversationId','companyId','candidateId','companyName','candidateName','title','location','startAt','durationMinutes','status','proposedAt','responseNote','revision','updatedBy','createdAt','updatedAt'])
+          && d.title is string && d.title.size() >= 3 && d.title.size() <= 120
+          && d.location is string && d.location.size() >= 3 && d.location.size() <= 500
+          && d.startAt is timestamp && (d.proposedAt == null || d.proposedAt is timestamp)
+          && d.durationMinutes in [15,30,45,60,90,120]
+          && d.responseNote is string && d.responseNote.size() <= 1000
+          && d.revision is int && d.revision >= 0 && d.updatedBy == request.auth.uid
+          && d.updatedAt == request.time;
+      }
+      function matchesChat(d) {
+        let c = chatData(d.conversationId);
+        return d.companyId == c.companyId && d.candidateId == c.candidateId
+          && d.companyName == c.companyName && d.candidateName == c.candidateName;
+      }
+      function candidateAction(old, d) {
+        return request.auth.uid == old.candidateId && d.startAt == old.startAt && (
+          (old.status == 'pending' && d.status == 'confirmed' && d.proposedAt == null && d.startAt > request.time)
+          || (d.status == 'rejected' && d.proposedAt == null)
+          || (old.status in ['pending','confirmed'] && d.status == 'reschedule_requested'
+            && d.proposedAt is timestamp && d.proposedAt > request.time)
+        );
+      }
+      function companyAction(old, d) {
+        return request.auth.uid == old.companyId && d.proposedAt == null && (
+          (d.status == 'cancelled' && d.startAt == old.startAt)
+          || (d.status == 'pending' && d.startAt > request.time)
+          || (old.status == 'reschedule_requested' && d.status == 'confirmed'
+            && d.startAt == old.proposedAt && d.startAt > request.time)
+        );
+      }
+      allow get: if (signedIn() && !exists(/databases/$(database)/documents/interviews/$(interviewId)) && hasRole('company')) || chatMember(resource.data);
+      allow list: if chatMember(resource.data);
+      allow create: if hasRole('company') && shape(request.resource.data)
+        && request.resource.data.companyId == request.auth.uid
+        && matchesChat(request.resource.data)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.startAt > request.time
+        && request.resource.data.proposedAt == null
+        && request.resource.data.responseNote == ''
+        && request.resource.data.revision == 0
+        && request.resource.data.createdAt == request.time;
+      allow update: if chatMember(resource.data) && shape(request.resource.data)
+        && resource.data.status in ['pending','confirmed','reschedule_requested']
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','startAt','proposedAt','responseNote','revision','updatedBy','updatedAt'])
+        && (candidateAction(resource.data, request.resource.data) || companyAction(resource.data, request.resource.data));
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "description": "Testes locais das regras do Avance+; n\u00e3o s\u00e3o depend\u00eancias do app Flutter.",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-avance-catalog --config ../firebase.emulator.json \"node run_all.cjs\"",
+    "test:storage": "firebase emulators:exec --only storage --project demo-avance-catalog --config ../firebase.emulator.json \"node storage_rules.cjs\""
+  },
+  "devDependencies": {
+    "firebase-tools": "13.35.1",
+    "@firebase/rules-unit-testing": "3.0.4",
+    "firebase": "10.14.1"
+  }
+}
