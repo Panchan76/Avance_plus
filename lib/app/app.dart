@@ -4,12 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:avance_plus/core/theme/app_theme.dart';
 import 'package:avance_plus/features/auth/presentation/pages/auth_gate.dart';
 
+final GlobalKey<ScaffoldMessengerState> appScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 class AvanceApp extends StatelessWidget {
   const AvanceApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Avance+', debugShowCheckedModeBanner: false, theme: AppTheme.lightTheme,
-    home: const AuthGate(),
+    home: const AuthGate(), scaffoldMessengerKey: appScaffoldMessengerKey,
     builder: (context, child) => _AccountTextScale(child: child ?? const SizedBox.shrink()),
   );
 }

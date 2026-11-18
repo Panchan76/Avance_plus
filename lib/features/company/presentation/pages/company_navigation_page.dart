@@ -3,6 +3,7 @@ import '../../../communication/conversations_page.dart';
 import '../../../communication/agenda_page.dart';
 import '../../../catalog/catalog_page.dart';
 import '../../../catalog/company_catalog_pages.dart';
+import '../../../notifications/notifications_page.dart';
 import 'package:flutter/material.dart';
 
 class CompanyNavigationPage extends StatefulWidget {
@@ -22,6 +23,7 @@ class _CompanyNavigationPageState
     CandidatesPage(),
     ConversationsPage(company: true),
     AgendaPage(company: true),
+    NotificationsPage(company: true),
     ProfilePage(),
   ];
 
@@ -49,6 +51,7 @@ class _CompanyNavigationPageState
           ),
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Conversas'),
           NavigationDestination(icon: Icon(Icons.calendar_month), label: 'Agenda'),
+          NavigationDestination(icon: Icon(Icons.notifications_outlined), label: 'Avisos'),
           NavigationDestination(
             icon: Icon(Icons.business_outlined),
             selectedIcon: Icon(Icons.business),
