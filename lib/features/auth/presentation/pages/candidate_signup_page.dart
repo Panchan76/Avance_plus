@@ -4,6 +4,9 @@ import 'auth_gate.dart';
 import 'package:flutter/material.dart';
 
 
+int _ageOn(DateTime birth, DateTime today) => today.year - birth.year -
+    ((today.month < birth.month || (today.month == birth.month && today.day < birth.day)) ? 1 : 0);
+
 class CandidateSignupPage extends StatefulWidget {
   const CandidateSignupPage({super.key});
 
@@ -18,6 +21,7 @@ class _CandidateSignupPageState
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  DateTime? _birthDate;
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -41,7 +45,7 @@ class _CandidateSignupPageState
     try {
       await AuthService.instance.register(email: _emailController.text,
         password: _passwordController.text, name: _nameController.text,
-        role: 'candidate');
+        role: 'candidate', birthDate: _birthDate!);
       if (mounted) openAuthenticatedRoot(context);
     } catch (error) {
       if (!mounted) return;
@@ -73,7 +77,7 @@ class _CandidateSignupPageState
       canPop: !_busy,
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Cadastro de candidato'),
+        title: const Text('Cadastro de pessoa idosa'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -105,7 +109,7 @@ class _CandidateSignupPageState
                     const SizedBox(height: 8),
 
                     Text(
-                      'Preencha seus dados para começar a encontrar novas oportunidades.',
+                      'Preencha seus dados. É necessário ter pelo menos 60 anos para criar uma conta de candidato.',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
 
@@ -130,6 +134,52 @@ class _CandidateSignupPageState
 
                         return null;
                       },
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    FormField<DateTime>(
+                      validator: (_) {
+                        if (_birthDate == null) return 'Informe sua data de nascimento.';
+                        if (_ageOn(_birthDate!, DateTime.now()) < 60) {
+                          return 'O cadastro é exclusivo para pessoas com 60 anos ou mais.';
+                        }
+                        return null;
+                      },
+                      builder: (field) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _busy ? null : () async {
+                              final now = DateTime.now();
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime(now.year - 60, now.month, now.day),
+                                firstDate: DateTime(1900),
+                                lastDate: now,
+                                helpText: 'Selecione sua data de nascimento',
+                              );
+                              if (picked != null) {
+                                setState(() => _birthDate = picked);
+                                field.didChange(picked);
+                              }
+                            },
+                            icon: const Icon(Icons.cake_outlined),
+                            label: Text(_birthDate == null
+                              ? 'Data de nascimento'
+                              : 'Nascimento: ${_birthDate!.day.toString().padLeft(2, '0')}/${_birthDate!.month.toString().padLeft(2, '0')}/${_birthDate!.year}'),
+                          ),
+                          if (field.hasError)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12, top: 6),
+                              child: Text(field.errorText!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                            ),
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6, left: 4),
+                            child: Text('O Avance+ é destinado a pessoas com 60 anos ou mais.'),
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 18),

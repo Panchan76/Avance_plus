@@ -44,7 +44,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     ]));
 }
 class HelpPage extends StatelessWidget {
-  const HelpPage({super.key});
+  const HelpPage({super.key, this.company = false});
+  final bool company;
   @override
   Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Ajuda')),
     body: ListView(padding: const EdgeInsets.all(24), children: [
@@ -54,6 +55,6 @@ class HelpPage extends StatelessWidget {
       const ExpansionTile(title: Text('Como alterar foto e dados?'), children: [Padding(padding: EdgeInsets.all(16), child: Text('Abra Perfil para escolher uma foto JPG, PNG ou WebP de até 5 MB. Toque em Dados pessoais ou Dados da empresa e contato para editar. A foto é usada no seu perfil; nesta versão ela não é compartilhada nos currículos.'))]),
       const ExpansionTile(title: Text('Cuidados durante a busca de trabalho'), children: [Padding(padding: EdgeInsets.all(16), child: Text('Não envie senhas ou códigos de acesso. Desconfie de cobranças para participar de entrevistas. O cadastro da empresa não comprova a identidade de quem está conversando com você.'))]),
       const SizedBox(height: 16),
-      FilledButton.icon(icon: const Icon(Icons.support_agent), label: const Text('Perguntar ao assistente'), onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Assistente')), body: const ChatbotPage())))),
+      if (!company) FilledButton.icon(icon: const Icon(Icons.support_agent), label: const Text('Perguntar ao assistente'), onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Assistente')), body: const ChatbotPage())))),
     ]));
 }

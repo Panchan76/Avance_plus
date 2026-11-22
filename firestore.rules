@@ -3,17 +3,27 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
       function owner() { return request.auth != null && request.auth.uid == userId; }
+      function isAtLeast60(birthDate) {
+        return birthDate.year() < request.time.year() - 60
+          || (birthDate.year() == request.time.year() - 60
+            && (birthDate.month() < request.time.month()
+              || (birthDate.month() == request.time.month()
+                && birthDate.day() <= request.time.day())));
+      }
       allow get: if owner();
       // Companies register directly; CNPJ is declared, not officially verified.
       allow create: if owner()
         && request.resource.data.keys().hasAll(['uid','email','name','role','createdAt'])
-        && request.resource.data.keys().hasOnly(['uid','email','name','role','createdAt','cnpj'])
+        && request.resource.data.keys().hasOnly(['uid','email','name','role','createdAt','cnpj','birthDate'])
         && request.resource.data.uid == userId
         && request.resource.data.email == request.auth.token.email
-        && ((request.resource.data.role == 'candidate' && !('cnpj' in request.resource.data))
+        && ((request.resource.data.role == 'candidate'
+          && !('cnpj' in request.resource.data)
+          && request.resource.data.birthDate is timestamp
+          && isAtLeast60(request.resource.data.birthDate))
           || (request.resource.data.role == 'company'
             && request.resource.data.cnpj is string && request.resource.data.cnpj.size() > 0
-            && request.resource.data.cnpj.size() <= 32))
+            && request.resource.data.cnpj.size() <= 32 && !('birthDate' in request.resource.data)))
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 120
         && request.resource.data.createdAt == request.time;
@@ -26,6 +36,26 @@ service cloud.firestore {
         && request.resource.data.contactEmail is string && request.resource.data.contactEmail.size() <= 200
         && request.resource.data.updatedAt == request.time;
       allow list, delete: if false;
+      match /notifications/{notificationId} {
+        allow read: if owner();
+        allow update: if owner()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+          && request.resource.data.read is bool;
+        // Avisos locais são mantidos em memória no aplicativo; não exigem gravação nesta coleção.
+        allow create, delete: if false;
+      }
+      match /devices/{deviceId} {
+        allow read: if owner();
+        allow create, update: if owner()
+          && deviceId == 'current'
+          && request.resource.data.keys().hasOnly(['token','platform','updatedAt'])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 0
+          && request.resource.data.token.size() <= 4096
+          && request.resource.data.platform is string
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if owner();
+      }
       match /settings/{settingId} {
         allow read: if owner() && settingId == 'accessibility';
         allow create, update: if owner() && settingId == 'accessibility'
