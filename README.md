@@ -1,17 +1,16 @@
-# avance_plus
+# Avance+
 
-A new Flutter project.
+Aplicativo Flutter com Firebase Authentication e Cloud Firestore.
 
-## Getting Started
+## Configuração
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+Consulte os arquivos `LEIA-ME-*.md` para as instruções das funcionalidades e configuração do Firebase.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Notificações
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+As notificações são exibidas dentro do app enquanto ele está aberto, por meio de listeners do Firestore. Esta versão não usa Firebase Cloud Messaging nem Cloud Functions e não exige o plano Blaze. Consulte `NOTIFICACOES.md`.

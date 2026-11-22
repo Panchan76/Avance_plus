@@ -1,6 +1,9 @@
+import 'dart:async';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../../../communication/conversations_page.dart';
 import '../../../communication/agenda_page.dart';
+import '../../../notifications/notifications_page.dart';
+import '../../../notifications/notification_service.dart';
 import '../../../catalog/catalog_page.dart';
 import '../../../catalog/company_catalog_pages.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +17,33 @@ class CompanyNavigationPage extends StatefulWidget {
 }
 
 class _CompanyNavigationPageState
-    extends State<CompanyNavigationPage> {
+    extends State<CompanyNavigationPage> with WidgetsBindingObserver {
   int selectedIndex = 0;
+  StreamSubscription<AppNotification>? notificationSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    NotificationService.instance.start(company: true);
+    notificationSubscription = NotificationService.instance.events.listen((notification) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(notification.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(notification.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ]),
+        action: SnackBarAction(label: 'VER', onPressed: () => setState(() => selectedIndex = 5)),
+      ));
+    });
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    NotificationService.instance.setAppActive(state == AppLifecycleState.resumed);
+  }
+  @override
+  void dispose() { WidgetsBinding.instance.removeObserver(this); notificationSubscription?.cancel(); NotificationService.instance.stop(); super.dispose(); }
 
   final pages = const [
     CatalogPage(company: true),
@@ -23,6 +51,7 @@ class _CompanyNavigationPageState
     ConversationsPage(company: true),
     AgendaPage(company: true),
     ProfilePage(),
+    NotificationsPage(),
   ];
 
   @override
@@ -54,6 +83,7 @@ class _CompanyNavigationPageState
             selectedIcon: Icon(Icons.business),
             label: 'Perfil',
           ),
+          NavigationDestination(icon: const NotificationBadgeIcon(), label: 'Avisos'),
         ],
       ),
     );

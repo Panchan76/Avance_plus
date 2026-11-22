@@ -77,10 +77,10 @@ class AccountTypePage extends StatelessWidget {
 
                   _AccountTypeCard(
                     icon: Icons.person_outline,
-                    title: 'Sou candidato',
+                    title: 'Sou pessoa com 60 anos ou mais',
                     description:
-                        'Quero encontrar vagas, acompanhar empresas e receber ajuda da assistente.',
-                    buttonText: 'Criar conta de candidato',
+                        'Quero encontrar oportunidades de trabalho, acompanhar empresas e receber ajuda da assistente.',
+                    buttonText: 'Criar conta de pessoa idosa',
                     onPressed: () {
                       _openCandidateSignup(context);
                     },

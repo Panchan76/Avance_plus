@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../auth/data/auth_service.dart';
 import '../../../auth/presentation/widgets/sign_out_button.dart';
 import '../../../catalog/resume_page.dart';
-import '../../../chatbot/presentation/pages/chatbot_page.dart';
 import '../../data/profile_service.dart';
 import 'profile_settings_page.dart';
 
@@ -84,8 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ListTile(leading: const Icon(Icons.person_outline), title: Text(company ? 'Dados da empresa e contato' : 'Dados pessoais'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(EditProfilePage(data: data))),
         if (!company) ListTile(leading: const Icon(Icons.description_outlined), title: const Text('Currículo'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(const ResumePage())),
         ListTile(leading: const Icon(Icons.settings_outlined), title: const Text('Configurações'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(const ProfileSettingsPage())),
-        ListTile(leading: const Icon(Icons.help_outline), title: const Text('Ajuda'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(const HelpPage())),
-        if (company) ListTile(leading: const Icon(Icons.support_agent), title: const Text('Assistente offline'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(Scaffold(appBar: AppBar(title: const Text('Assistente')), body: const ChatbotPage()))),
+        ListTile(leading: const Icon(Icons.help_outline), title: const Text('Ajuda'), trailing: const Icon(Icons.chevron_right), onTap: () => _open(HelpPage(company: company))),
         const SizedBox(height: 20), const SignOutButton(),
       ]);
     },
