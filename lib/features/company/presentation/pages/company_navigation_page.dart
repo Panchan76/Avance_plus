@@ -25,7 +25,6 @@ class _CompanyNavigationPageState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    NotificationService.instance.start(company: true);
     notificationSubscription = NotificationService.instance.events.listen((notification) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -37,6 +36,7 @@ class _CompanyNavigationPageState
         action: SnackBarAction(label: 'VER', onPressed: () => setState(() => selectedIndex = 5)),
       ));
     });
+    NotificationService.instance.start(company: true);
   }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
