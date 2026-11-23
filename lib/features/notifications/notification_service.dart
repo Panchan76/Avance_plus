@@ -133,7 +133,7 @@ class NotificationService {
         _notify('interview_${change.doc.id}_${data['revision'] ?? 0}', title, statusText, 'interview');
       }
       _firstInterviewsSnapshot = false;
-    }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
+    }, onError: (Object error, StackTrace stack) { _reportError('entrevistas', error, stack); }));
 
     if (company) {
       _subscriptions.add(db.collection('resumes').where('shared', isEqualTo: true)
@@ -150,7 +150,7 @@ class NotificationService {
           }
         }
         _firstResumesSnapshot = false;
-      }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
+      }, onError: (Object error, StackTrace stack) { _reportError('currículos compartilhados', error, stack); }));
     } else {
       _subscriptions.add(db.collection('career_roles').where('status', isEqualTo: 'approved')
           .snapshots().listen((snapshot) async {
@@ -165,7 +165,7 @@ class NotificationService {
           }
         }
         _firstCareerRolesSnapshot = false;
-      }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
+      }, onError: (Object error, StackTrace stack) { _reportError('cargos aprovados', error, stack); }));
     }
 
     _subscriptions.add(db.collection('career_roles').where('requestedBy', isEqualTo: user.uid)
@@ -184,7 +184,7 @@ class NotificationService {
         }
       }
       _firstRequestedRolesSnapshot = false;
-    }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
+    }, onError: (Object error, StackTrace stack) { _reportError('solicitações de cargos', error, stack); }));
   }
 
   Future<void> _loadCandidateRoles(String uid) async {
@@ -213,7 +213,7 @@ class NotificationService {
           '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message');
       }
       firstSnapshot = false;
-    }, onError: (Object error) {});
+    }, onError: (Object error, StackTrace stack) { _reportError('mensagens da conversa $conversationId', error, stack); });
     _messageSubscriptions[conversationId] = subscription;
   }
 
