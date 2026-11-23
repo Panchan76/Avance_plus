@@ -36,6 +36,7 @@ class NotificationService {
   bool _firstRequestedRolesSnapshot = true;
   bool _firstResumesSnapshot = true;
   String? _uid;
+  DateTime? _startedAt;
   bool _company = false;
   final Set<String> _reportedErrors = {};
   Set<String> _candidateRoleIds = {};
@@ -88,6 +89,7 @@ class NotificationService {
     stop();
     _started = true;
     _uid = user.uid;
+    _startedAt = DateTime.now();
     _company = company;
     _reportedErrors.clear();
     debugPrint('[Avance+][Notificações] iniciando uid=${user.uid}, perfil=${company ? 'empresa' : 'candidato'}');
@@ -101,12 +103,26 @@ class NotificationService {
         if (data == null) continue;
         final id = change.doc.id;
         if (change.type == DocumentChangeType.added) {
-          if (!_firstConversationsSnapshot) {
+          final createdAt = data['createdAt'];
+          final createdDuringThisSession = createdAt is Timestamp &&
+              _startedAt != null &&
+              createdAt.toDate().isAfter(_startedAt!);
+          final isNewConversation =
+              !_firstConversationsSnapshot || createdDuringThisSession;
+
+          // A conversa é iniciada pela empresa; o aviso de nova conversa
+          // deve aparecer para o candidato, não para a própria empresa.
+          if (isNewConversation && !company) {
             _notify('conversation_$id', 'Nova conversa',
-              '${company ? data['candidateName'] : data['companyName']} iniciou uma conversa com você.', 'conversation');
+              '${data['companyName'] ?? 'Uma empresa'} iniciou uma conversa com você.', 'conversation');
           }
+
           _knownConversationIds.add(id);
-          _watchMessages(id, data);
+          _watchMessages(
+            id,
+            data,
+            notifyInitialReceivedMessages: isNewConversation,
+          );
         }
       }
       _firstConversationsSnapshot = false;
@@ -194,26 +210,69 @@ class NotificationService {
     } catch (error, stack) { _reportError('carregar cargos do currículo', error, stack); }
   }
 
-  void _watchMessages(String conversationId, Map<String, dynamic> conversation) {
+  void _watchMessages(
+    String conversationId,
+    Map<String, dynamic> conversation, {
+    required bool notifyInitialReceivedMessages,
+  }) {
     if (_messageSubscriptions.containsKey(conversationId)) return;
     final uid = _uid;
     if (uid == null) return;
     var firstSnapshot = true;
-    final subscription = FirebaseFirestore.instance.collection('conversations')
-        .doc(conversationId).collection('messages').orderBy('createdAt', descending: true)
-        .limit(30).snapshots().listen((snapshot) {
-      for (final change in snapshot.docChanges) {
-        if (firstSnapshot || change.type != DocumentChangeType.added) continue;
-        final data = change.doc.data();
-        if (data == null || data['senderId'] == uid) continue;
-        final sender = data['senderId'] == conversation['companyId']
-            ? conversation['companyName'] : conversation['candidateName'];
-        final text = (data['text'] as String? ?? '').trim();
-        _notify('message_${change.doc.id}', 'Nova mensagem',
-          '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message');
+
+    void notifyMessage(String messageId, Map<String, dynamic> data) {
+      if (data['senderId'] == uid) return;
+
+      final sender = data['senderId'] == conversation['companyId']
+          ? conversation['companyName']
+          : conversation['candidateName'];
+      final messageText = (data['text'] as String? ?? '').trim();
+      final preview = messageText.length > 100
+          ? '${messageText.substring(0, 97)}...'
+          : messageText;
+
+      _notify(
+        'message_$messageId',
+        'Nova mensagem',
+        '${sender ?? 'Você recebeu uma mensagem'}: $preview',
+        'message',
+      );
+    }
+
+    final subscription = FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots()
+        .listen((snapshot) {
+      if (firstSnapshot) {
+        firstSnapshot = false;
+
+        // Em uma conversa recém-criada, a primeira mensagem pode já existir
+        // quando o listener é conectado. Notifica apenas a mensagem recebida
+        // mais recente, sem disparar avisos para todo o histórico.
+        if (notifyInitialReceivedMessages) {
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            if (data['senderId'] != uid) {
+              notifyMessage(doc.id, data);
+              break;
+            }
+          }
+        }
+        return;
       }
-      firstSnapshot = false;
-    }, onError: (Object error, StackTrace stack) { _reportError('mensagens da conversa $conversationId', error, stack); });
+
+      for (final change in snapshot.docChanges) {
+        if (change.type != DocumentChangeType.added) continue;
+        notifyMessage(change.doc.id, change.doc.data());
+      }
+    }, onError: (Object error, StackTrace stack) {
+      _reportError('mensagens da conversa $conversationId', error, stack);
+    });
+
     _messageSubscriptions[conversationId] = subscription;
   }
 
@@ -225,6 +284,7 @@ class NotificationService {
     _knownConversationIds.clear();
     _started = false;
     _uid = null;
+    _startedAt = null;
     _candidateRoleIds = {};
     _appActive = true;
     _firstConversationsSnapshot = true;
