@@ -8,7 +8,7 @@ class AssistantEngine {
   static const Duration _tempoLimite = Duration(seconds: 60);
 
   final GenerativeModel _model = FirebaseAI.googleAI().generativeModel(
-    model: 'gemini-3.5-flash',
+    model: 'gemini-3.8-flash',
     systemInstruction: Content.system('''
 Você é a assistente virtual do Avance+, um aplicativo
 que ajuda pessoas a encontrar oportunidades profissionais.
