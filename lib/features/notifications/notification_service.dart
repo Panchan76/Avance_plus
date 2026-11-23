@@ -118,11 +118,7 @@ class NotificationService {
           }
 
           _knownConversationIds.add(id);
-          _watchMessages(
-            id,
-            data,
-            notifyInitialReceivedMessages: isNewConversation,
-          );
+          _watchMessages(id, data);
         }
       }
       _firstConversationsSnapshot = false;
@@ -210,11 +206,7 @@ class NotificationService {
     } catch (error, stack) { _reportError('carregar cargos do currículo', error, stack); }
   }
 
-  void _watchMessages(
-    String conversationId,
-    Map<String, dynamic> conversation, {
-    required bool notifyInitialReceivedMessages,
-  }) {
+  void _watchMessages(String conversationId, Map<String, dynamic> conversation) {
     if (_messageSubscriptions.containsKey(conversationId)) return;
     final uid = _uid;
     if (uid == null) return;
@@ -250,13 +242,17 @@ class NotificationService {
       if (firstSnapshot) {
         firstSnapshot = false;
 
-        // Em uma conversa recém-criada, a primeira mensagem pode já existir
-        // quando o listener é conectado. Notifica apenas a mensagem recebida
-        // mais recente, sem disparar avisos para todo o histórico.
-        if (notifyInitialReceivedMessages) {
+        // Uma mensagem pode chegar entre a leitura das conversas e a conexão
+        // deste listener. No primeiro snapshot, notifica somente mensagens
+        // criadas depois do início da sessão, sem repetir o histórico antigo.
+        final sessionStartedAt = _startedAt;
+        if (sessionStartedAt != null) {
           for (final doc in snapshot.docs) {
             final data = doc.data();
-            if (data['senderId'] != uid) {
+            final createdAt = data['createdAt'];
+            if (createdAt is Timestamp &&
+                createdAt.toDate().isAfter(sessionStartedAt) &&
+                data['senderId'] != uid) {
               notifyMessage(doc.id, data);
               break;
             }
