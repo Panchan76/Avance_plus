@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,6 +37,7 @@ class NotificationService {
   bool _firstResumesSnapshot = true;
   String? _uid;
   bool _company = false;
+  final Set<String> _reportedErrors = {};
   Set<String> _candidateRoleIds = {};
 
   Stream<AppNotification> get events => _events.stream;
@@ -52,6 +54,14 @@ class NotificationService {
   }
 
   void setAppActive(bool active) { _appActive = active; }
+
+  void _reportError(String source, Object error, [StackTrace? stackTrace]) {
+    final key = '$source:${error.runtimeType}:$error';
+    if (_reportedErrors.add(key)) {
+      debugPrint('[Avance+][Notificações][$source] $error');
+      if (stackTrace != null) debugPrintStack(stackTrace: stackTrace);
+    }
+  }
 
   void _notify(String id, String title, String body, String type) {
     if (!_appActive) return;
@@ -79,6 +89,8 @@ class NotificationService {
     _started = true;
     _uid = user.uid;
     _company = company;
+    _reportedErrors.clear();
+    debugPrint('[Avance+][Notificações] iniciando uid=${user.uid}, perfil=${company ? 'empresa' : 'candidato'}');
     final db = FirebaseFirestore.instance;
 
     final conversations = db.collection('conversations')
@@ -98,7 +110,7 @@ class NotificationService {
         }
       }
       _firstConversationsSnapshot = false;
-    }, onError: (Object error) { /* Avisos não devem interromper o aplicativo. */ }));
+    }, onError: (Object error, StackTrace stack) { _reportError('conversas', error, stack); }));
 
     final interviews = db.collection('interviews')
         .where(company ? 'companyId' : 'candidateId', isEqualTo: user.uid);
@@ -121,7 +133,7 @@ class NotificationService {
         _notify('interview_${change.doc.id}_${data['revision'] ?? 0}', title, statusText, 'interview');
       }
       _firstInterviewsSnapshot = false;
-    }, onError: (Object error) {}));
+    }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
 
     if (company) {
       _subscriptions.add(db.collection('resumes').where('shared', isEqualTo: true)
@@ -138,7 +150,7 @@ class NotificationService {
           }
         }
         _firstResumesSnapshot = false;
-      }, onError: (Object error) {}));
+      }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
     } else {
       _subscriptions.add(db.collection('career_roles').where('status', isEqualTo: 'approved')
           .snapshots().listen((snapshot) async {
@@ -153,7 +165,7 @@ class NotificationService {
           }
         }
         _firstCareerRolesSnapshot = false;
-      }, onError: (Object error) {}));
+      }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
     }
 
     _subscriptions.add(db.collection('career_roles').where('requestedBy', isEqualTo: user.uid)
@@ -172,14 +184,14 @@ class NotificationService {
         }
       }
       _firstRequestedRolesSnapshot = false;
-    }, onError: (Object error) {}));
+    }, onError: (Object error, StackTrace stack) { _reportError('listener Firestore', error, stack); }));
   }
 
   Future<void> _loadCandidateRoles(String uid) async {
     try {
       final doc = await FirebaseFirestore.instance.collection('resumes').doc(uid).get();
       _candidateRoleIds = Set<String>.from(doc.data()?['roleIds'] as List? ?? const []);
-    } catch (_) {}
+    } catch (error, stack) { _reportError('carregar cargos do currículo', error, stack); }
   }
 
   void _watchMessages(String conversationId, Map<String, dynamic> conversation) {
@@ -212,11 +224,14 @@ class NotificationService {
     _messageSubscriptions.clear();
     _knownConversationIds.clear();
     _started = false;
+    _uid = null;
+    _candidateRoleIds = {};
     _appActive = true;
     _firstConversationsSnapshot = true;
     _firstInterviewsSnapshot = true;
     _firstCareerRolesSnapshot = true;
     _firstRequestedRolesSnapshot = true;
     _firstResumesSnapshot = true;
+    debugPrint('[Avance+][Notificações] serviço interrompido');
   }
 }
