@@ -255,7 +255,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 30,
+            vertical: 14,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -530,61 +530,55 @@ class _ChatbotPageState extends State<ChatbotPage> {
           _buildHeader(colors),
 
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return ListView(
-                  controller: _scroll,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
+            child: ListView(
+              controller: _scroll,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              children: [
+                if (_messages.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 12),
+                    child: _buildWelcome(colors),
                   ),
-                  children: [
-                    if (_messages.isEmpty)
-                      SizedBox(
-                        height: constraints.maxHeight > 400
-                            ? constraints.maxHeight - 40
-                            : 360,
-                        child: _buildWelcome(colors),
-                      ),
 
-                    for (final message in _messages)
-                      _buildMessage(message, colors),
+                for (final message in _messages)
+                  _buildMessage(message, colors),
 
-                    if (_busy)
-                      _buildTypingIndicator(colors),
+                if (_busy)
+                  _buildTypingIndicator(colors),
 
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: 16,
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: 16,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            color: colors.error,
+                            fontSize: _fontSize,
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                color: colors.error,
-                                 fontSize: _fontSize,
-                              ),
-                            ),
-                            TextButton.icon(
-                              onPressed: _busy
-                                  ? null
-                                  : () => _send(retry: true),
-                              icon: const Icon(Icons.refresh),
-                              label: Text(
-                                'Tentar novamente',
-                                style: TextStyle(fontSize: _fontSize - 2),
-                              ),
-                            ),
-                          ],
+                        TextButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => _send(retry: true),
+                          icon: const Icon(Icons.refresh),
+                          label: Text(
+                            'Tentar novamente',
+                            style: TextStyle(fontSize: _fontSize - 2),
+                          ),
                         ),
-                      ),
-                  ],
-                );
-              },
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
 
