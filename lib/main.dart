@@ -22,9 +22,11 @@ Future<void> main() async {
           defaultValue: 'SUBSTITUA_PELA_CHAVE_REAL',
         ),
       ),
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidReCaptchaProvider(
+              '6Lcp5S4uAAAAAEq_9yxWZERqRLDO_hb340m_8b8_',
+            ),
       appleProvider: kDebugMode
           ? AppleProvider.debug
           : AppleProvider.appAttest,
