@@ -12,7 +12,20 @@
           "package_name": "com.example.avance_plus"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "581291472838-h6tbh2gmn8b5qhpaa169786r8ns7m7jc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.avance_plus",
+            "certificate_hash": "bc1d02f9a3f4606abf067821215ddf27fcaad792"
+          }
+        },
+        {
+          "client_id": "581291472838-aba4dmvbk6eqq31hulpqofl70ub1daau.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAzSoyc0I6rZ6gZejOG_x1g9l_sfigye4U"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "581291472838-aba4dmvbk6eqq31hulpqofl70ub1daau.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "581291472838-vo6mi56rf8mqtmofmacc7isithvoc7of.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.avancePlus"
+              }
+            }
+          ]
         }
       }
     }
