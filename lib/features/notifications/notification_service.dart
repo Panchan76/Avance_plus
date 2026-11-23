@@ -263,7 +263,9 @@ class NotificationService {
 
       for (final change in snapshot.docChanges) {
         if (change.type != DocumentChangeType.added) continue;
-        notifyMessage(change.doc.id, change.doc.data());
+        final data = change.doc.data();
+        if (data == null) continue;
+        notifyMessage(change.doc.id, data);
       }
     }, onError: (Object error, StackTrace stack) {
       _reportError('mensagens da conversa $conversationId', error, stack);
