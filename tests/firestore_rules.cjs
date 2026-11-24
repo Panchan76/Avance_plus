@@ -15,11 +15,14 @@ const {doc, collection, setDoc, getDoc, getDocs, query, where, updateDoc, server
       }
       await setDoc(doc(db,'career_roles','approved-custom'), {title:'Cargo aprovado',description:'Atividades aprovadas',status:'approved',requestedBy:'company-a'});
     });
-    const candidate = env.authenticatedContext('candidate-a', {email:'candidate-a@example.com'}).firestore();
-    const other = env.authenticatedContext('candidate-b').firestore();
-    const company = env.authenticatedContext('company-a').firestore();
-    const otherCompany = env.authenticatedContext('company-b').firestore();
+    const candidate = env.authenticatedContext('candidate-a', {email:'candidate-a@example.com',email_verified:true}).firestore();
+    const other = env.authenticatedContext('candidate-b', {email_verified:true}).firestore();
+    const company = env.authenticatedContext('company-a', {email_verified:true}).firestore();
+    const otherCompany = env.authenticatedContext('company-b', {email_verified:true}).firestore();
     const anon = env.unauthenticatedContext().firestore();
+    const unverified = env.authenticatedContext('candidate-a', {email_verified:false}).firestore();
+    await assertFails(getDoc(doc(unverified,'users','candidate-a')));
+    await assertFails(getDocs(query(collection(unverified,'career_roles'),where('status','==','approved'))));
     const request = {title:'Novo cargo',description:'Descrição das atividades',requestedBy:'company-a',status:'pending',createdAt:serverTimestamp()};
     await assertSucceeds(setDoc(doc(company,'career_roles','new-role'),request));
     await assertFails(setDoc(doc(company,'career_roles','self-approved'),{...request,status:'approved'}));
@@ -30,6 +33,12 @@ const {doc, collection, setDoc, getDoc, getDocs, query, where, updateDoc, server
     await assertSucceeds(getDocs(query(collection(company,'career_roles'),where('requestedBy','==','company-a'))));
     await assertSucceeds(getDocs(query(collection(candidate,'career_roles'),where('status','==','approved'))));
     await assertFails(getDocs(collection(candidate,'career_roles')));
+    const avatar = {base64:'YWJj',updatedAt:serverTimestamp()};
+    await assertSucceeds(setDoc(doc(candidate,'users','candidate-a','avatar','current'),avatar));
+    await assertSucceeds(getDoc(doc(candidate,'users','candidate-a','avatar','current')));
+    await assertFails(getDoc(doc(other,'users','candidate-a','avatar','current')));
+    await assertFails(setDoc(doc(other,'users','candidate-a','avatar','current'),avatar));
+    await assertFails(setDoc(doc(candidate,'users','candidate-a','avatar','current'),{...avatar,base64:'a'.repeat(280001)}));
     const resume = {uid:'candidate-a',name:'Pessoa candidata',email:'pessoa@example.com',phone:'',city:'Recife / PE',
       summary:'Minha apresentação',experience:'Minha experiência',education:'Meus cursos',skills:'Minhas habilidades',
       roleIds:['jardineiro','approved-custom'],shared:true,updatedAt:serverTimestamp()};

@@ -1,17 +1,18 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AppNotification {
   AppNotification({required this.id, required this.title, required this.body,
-    required this.type, DateTime? createdAt}) : createdAt = createdAt ?? DateTime.now();
+    required this.type, this.conversationId, DateTime? createdAt}) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
   final String title;
   final String body;
   final String type;
+  /// Conversa relacionada: o aviso leva direto para ela ao ser tocado.
+  final String? conversationId;
   final DateTime createdAt;
   bool read = false;
 }
@@ -36,37 +37,31 @@ class NotificationService {
   bool _firstRequestedRolesSnapshot = true;
   bool _firstResumesSnapshot = true;
   String? _uid;
-  DateTime? _startedAt;
   bool _company = false;
-  final Set<String> _reportedErrors = {};
   Set<String> _candidateRoleIds = {};
 
   Stream<AppNotification> get events => _events.stream;
   Stream<List<AppNotification>> get notifications => _changes.stream;
   List<AppNotification> get current => List.unmodifiable(_items);
+  bool get isCompany => _company;
   int get unreadCount => _items.where((item) => !item.read).length;
 
-  void _publish(AppNotification item) {
+  void _publish(AppNotification item, {bool popup = true}) {
     if (_items.any((existing) => existing.id == item.id)) return;
     _items.insert(0, item);
     if (_items.length > 100) _items.removeLast();
-    _events.add(item);
+    // O aviso rápido na tela só aparece com o app aberto; a lista guarda sempre.
+    if (popup) _events.add(item);
     _changes.add(List.unmodifiable(_items));
   }
 
   void setAppActive(bool active) { _appActive = active; }
 
-  void _reportError(String source, Object error, [StackTrace? stackTrace]) {
-    final key = '$source:${error.runtimeType}:$error';
-    if (_reportedErrors.add(key)) {
-      debugPrint('[Avance+][Notificações][$source] $error');
-      if (stackTrace != null) debugPrintStack(stackTrace: stackTrace);
-    }
-  }
-
-  void _notify(String id, String title, String body, String type) {
-    if (!_appActive) return;
-    _publish(AppNotification(id: id, title: title, body: body, type: type));
+  void _notify(String id, String title, String body, String type, {String? conversationId}) {
+    // Antes, avisos que chegavam com o app em segundo plano eram descartados.
+    // Agora ficam guardados na lista e no contador do sino.
+    _publish(AppNotification(id: id, title: title, body: body, type: type,
+        conversationId: conversationId), popup: _appActive);
   }
 
   void markRead(String id) {
@@ -89,10 +84,7 @@ class NotificationService {
     stop();
     _started = true;
     _uid = user.uid;
-    _startedAt = DateTime.now();
     _company = company;
-    _reportedErrors.clear();
-    debugPrint('[Avance+][Notificações] iniciando uid=${user.uid}, perfil=${company ? 'empresa' : 'candidato'}');
     final db = FirebaseFirestore.instance;
 
     final conversations = db.collection('conversations')
@@ -103,26 +95,17 @@ class NotificationService {
         if (data == null) continue;
         final id = change.doc.id;
         if (change.type == DocumentChangeType.added) {
-          final createdAt = data['createdAt'];
-          final createdDuringThisSession = createdAt is Timestamp &&
-              _startedAt != null &&
-              createdAt.toDate().isAfter(_startedAt!);
-          final isNewConversation =
-              !_firstConversationsSnapshot || createdDuringThisSession;
-
-          // A conversa é iniciada pela empresa; o aviso de nova conversa
-          // deve aparecer para o candidato, não para a própria empresa.
-          if (isNewConversation && !company) {
+          if (!_firstConversationsSnapshot) {
             _notify('conversation_$id', 'Nova conversa',
-              '${data['companyName'] ?? 'Uma empresa'} iniciou uma conversa com você.', 'conversation');
+              '${company ? data['candidateName'] : data['companyName']} iniciou uma conversa com você.', 'conversation',
+              conversationId: id);
           }
-
           _knownConversationIds.add(id);
           _watchMessages(id, data);
         }
       }
       _firstConversationsSnapshot = false;
-    }, onError: (Object error, StackTrace stack) { _reportError('conversas', error, stack); }));
+    }, onError: (Object error) { /* Avisos não devem interromper o aplicativo. */ }));
 
     final interviews = db.collection('interviews')
         .where(company ? 'companyId' : 'candidateId', isEqualTo: user.uid);
@@ -142,10 +125,11 @@ class NotificationService {
           'reschedule_requested' => 'Foi solicitada uma alteração na data da entrevista.',
           _ => 'Os dados de uma entrevista foram atualizados.',
         };
-        _notify('interview_${change.doc.id}_${data['revision'] ?? 0}', title, statusText, 'interview');
+        _notify('interview_${change.doc.id}_${data['revision'] ?? 0}', title, statusText, 'interview',
+            conversationId: data['conversationId'] as String?);
       }
       _firstInterviewsSnapshot = false;
-    }, onError: (Object error, StackTrace stack) { _reportError('entrevistas', error, stack); }));
+    }, onError: (Object error) {}));
 
     if (company) {
       _subscriptions.add(db.collection('resumes').where('shared', isEqualTo: true)
@@ -162,7 +146,7 @@ class NotificationService {
           }
         }
         _firstResumesSnapshot = false;
-      }, onError: (Object error, StackTrace stack) { _reportError('currículos compartilhados', error, stack); }));
+      }, onError: (Object error) {}));
     } else {
       _subscriptions.add(db.collection('career_roles').where('status', isEqualTo: 'approved')
           .snapshots().listen((snapshot) async {
@@ -177,7 +161,7 @@ class NotificationService {
           }
         }
         _firstCareerRolesSnapshot = false;
-      }, onError: (Object error, StackTrace stack) { _reportError('cargos aprovados', error, stack); }));
+      }, onError: (Object error) {}));
     }
 
     _subscriptions.add(db.collection('career_roles').where('requestedBy', isEqualTo: user.uid)
@@ -196,14 +180,14 @@ class NotificationService {
         }
       }
       _firstRequestedRolesSnapshot = false;
-    }, onError: (Object error, StackTrace stack) { _reportError('solicitações de cargos', error, stack); }));
+    }, onError: (Object error) {}));
   }
 
   Future<void> _loadCandidateRoles(String uid) async {
     try {
       final doc = await FirebaseFirestore.instance.collection('resumes').doc(uid).get();
       _candidateRoleIds = Set<String>.from(doc.data()?['roleIds'] as List? ?? const []);
-    } catch (error, stack) { _reportError('carregar cargos do currículo', error, stack); }
+    } catch (_) {}
   }
 
   void _watchMessages(String conversationId, Map<String, dynamic> conversation) {
@@ -211,64 +195,22 @@ class NotificationService {
     final uid = _uid;
     if (uid == null) return;
     var firstSnapshot = true;
-
-    void notifyMessage(String messageId, Map<String, dynamic> data) {
-      if (data['senderId'] == uid) return;
-
-      final sender = data['senderId'] == conversation['companyId']
-          ? conversation['companyName']
-          : conversation['candidateName'];
-      final messageText = (data['text'] as String? ?? '').trim();
-      final preview = messageText.length > 100
-          ? '${messageText.substring(0, 97)}...'
-          : messageText;
-
-      _notify(
-        'message_$messageId',
-        'Nova mensagem',
-        '${sender ?? 'Você recebeu uma mensagem'}: $preview',
-        'message',
-      );
-    }
-
-    final subscription = FirebaseFirestore.instance
-        .collection('conversations')
-        .doc(conversationId)
-        .collection('messages')
-        .orderBy('createdAt', descending: true)
-        .limit(30)
-        .snapshots()
-        .listen((snapshot) {
-      if (firstSnapshot) {
-        firstSnapshot = false;
-
-        // Uma mensagem pode chegar entre a leitura das conversas e a conexão
-        // deste listener. No primeiro snapshot, notifica somente mensagens
-        // criadas depois do início da sessão, sem repetir o histórico antigo.
-        final sessionStartedAt = _startedAt;
-        if (sessionStartedAt != null) {
-          for (final doc in snapshot.docs) {
-            final data = doc.data();
-            final createdAt = data['createdAt'];
-            if (createdAt is Timestamp &&
-                createdAt.toDate().isAfter(sessionStartedAt) &&
-                data['senderId'] != uid) {
-              notifyMessage(doc.id, data);
-              break;
-            }
-          }
-        }
-        return;
-      }
-
+    final subscription = FirebaseFirestore.instance.collection('conversations')
+        .doc(conversationId).collection('messages').orderBy('createdAt', descending: true)
+        .limit(30).snapshots().listen((snapshot) {
       for (final change in snapshot.docChanges) {
-        if (change.type != DocumentChangeType.added) continue;
-        notifyMessage(change.doc.id, change.doc.data());
+        if (firstSnapshot || change.type != DocumentChangeType.added) continue;
+        final data = change.doc.data();
+        if (data == null || data['senderId'] == uid) continue;
+        final sender = data['senderId'] == conversation['companyId']
+            ? conversation['companyName'] : conversation['candidateName'];
+        final text = (data['text'] as String? ?? '').trim();
+        _notify('message_${change.doc.id}', 'Nova mensagem',
+          '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message',
+          conversationId: conversationId);
       }
-    }, onError: (Object error, StackTrace stack) {
-      _reportError('mensagens da conversa $conversationId', error, stack);
-    });
-
+      firstSnapshot = false;
+    }, onError: (Object error) {});
     _messageSubscriptions[conversationId] = subscription;
   }
 
@@ -279,15 +221,11 @@ class NotificationService {
     _messageSubscriptions.clear();
     _knownConversationIds.clear();
     _started = false;
-    _uid = null;
-    _startedAt = null;
-    _candidateRoleIds = {};
     _appActive = true;
     _firstConversationsSnapshot = true;
     _firstInterviewsSnapshot = true;
     _firstCareerRolesSnapshot = true;
     _firstRequestedRolesSnapshot = true;
     _firstResumesSnapshot = true;
-    debugPrint('[Avance+][Notificações] serviço interrompido');
   }
 }

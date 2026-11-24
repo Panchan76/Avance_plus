@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
-import '../../../auth/data/auth_service.dart';
 import '../../domain/services/assistant_engine.dart';
 
 class ChatbotPage extends StatefulWidget {
@@ -113,7 +112,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
       if (!mounted) return;
 
       setState(() {
-        _error = authErrorMessage(error);
+        _error = error is AssistantException
+            ? error.message
+            : 'Não consegui falar com o assistente agora. '
+                'Toque em "Tentar novamente".';
       });
     } finally {
       if (mounted) {
@@ -255,7 +257,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 14,
+            vertical: 30,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -482,6 +484,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
                 decoration: InputDecoration(
+                  counterText: '',
                   hintText: 'Digite sua pergunta aqui...',
                    hintStyle: TextStyle(fontSize: _fontSize),
                   filled: true,
@@ -530,55 +533,61 @@ class _ChatbotPageState extends State<ChatbotPage> {
           _buildHeader(colors),
 
           Expanded(
-            child: ListView(
-              controller: _scroll,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              children: [
-                if (_messages.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 12),
-                    child: _buildWelcome(colors),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return ListView(
+                  controller: _scroll,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 20,
                   ),
+                  children: [
+                    if (_messages.isEmpty)
+                      SizedBox(
+                        height: constraints.maxHeight > 400
+                            ? constraints.maxHeight - 40
+                            : 360,
+                        child: _buildWelcome(colors),
+                      ),
 
-                for (final message in _messages)
-                  _buildMessage(message, colors),
+                    for (final message in _messages)
+                      _buildMessage(message, colors),
 
-                if (_busy)
-                  _buildTypingIndicator(colors),
+                    if (_busy)
+                      _buildTypingIndicator(colors),
 
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 16,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _error!,
-                          style: TextStyle(
-                            color: colors.error,
-                            fontSize: _fontSize,
-                          ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: 16,
                         ),
-                        TextButton.icon(
-                          onPressed: _busy
-                              ? null
-                              : () => _send(retry: true),
-                          icon: const Icon(Icons.refresh),
-                          label: Text(
-                            'Tentar novamente',
-                            style: TextStyle(fontSize: _fontSize - 2),
-                          ),
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _error!,
+                              style: TextStyle(
+                                color: colors.error,
+                                 fontSize: _fontSize,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _send(retry: true),
+                              icon: const Icon(Icons.refresh),
+                              label: Text(
+                                'Tentar novamente',
+                                style: TextStyle(fontSize: _fontSize - 2),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-              ],
+                      ),
+                  ],
+                );
+              },
             ),
           ),
 

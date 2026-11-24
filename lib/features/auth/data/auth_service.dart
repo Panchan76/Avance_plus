@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,53 +7,6 @@ class AuthService {
   final auth = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance;
 
-  Future<void>? _googleInitialization;
-  bool _googleBusy = false;
-
-  static bool get supportsGoogleSignIn => kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.macOS;
-
-  Future<bool> signInWithGoogle() async {
-    if (_googleBusy) return false;
-    _googleBusy = true;
-    try {
-      if (kIsWeb) {
-        // Call the popup directly from the click handler; do not await setup first.
-        final provider = GoogleAuthProvider()
-          ..setCustomParameters({'prompt': 'select_account'});
-        await auth.signInWithPopup(provider);
-      } else {
-        if (!supportsGoogleSignIn) {
-          throw UnsupportedError('Use o navegador ou um dispositivo Android/iOS para entrar com Google.');
-        }
-        final google = GoogleSignIn.instance;
-        await (_googleInitialization ??= google.initialize());
-        final account = await google.authenticate();
-        final idToken = account.authentication.idToken;
-        if (idToken == null) {
-          throw FirebaseAuthException(code: 'google-token-missing',
-            message: 'O Google não retornou o token de autenticação.');
-        }
-        await auth.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
-      }
-      // AuthGate loads the existing UID profile or asks to complete a new one.
-      return true;
-    } on GoogleSignInException catch (error) {
-      if (error.code == GoogleSignInExceptionCode.canceled) return false;
-      rethrow;
-    } on FirebaseAuthException catch (error) {
-      if (error.code == 'popup-closed-by-user' ||
-          error.code == 'cancelled-popup-request' || error.code == 'web-context-canceled') {
-        return false;
-      }
-      rethrow;
-    } finally {
-      _googleBusy = false;
-    }
-  }
-
   Future<void> signIn(String email, String password) async {
     await auth.signInWithEmailAndPassword(email: email.trim(), password: password);
   }
@@ -64,8 +15,10 @@ class AuthService {
     required String name, required String role, String? cnpj, DateTime? birthDate}) async {
     final result = await auth.createUserWithEmailAndPassword(
       email: email.trim(), password: password);
-    // Authentication and Firestore are separate services. If this write fails,
-    // keep the account: AuthGate offers profile completion on the next login.
+    // Envia confirmação para novos cadastros com senha.
+    await result.user!.sendEmailVerification();
+    // Perfil reservado, mas acesso às funcionalidades depende da confirmação.
+    // O AuthGate impede a navegação até emailVerified ser verdadeiro.
     await saveProfile(result.user!, name: name, role: role, cnpj: cnpj, birthDate: birthDate);
   }
 
@@ -104,18 +57,7 @@ class AuthService {
 
   Future<void> resetPassword(String email) =>
       auth.sendPasswordResetEmail(email: email.trim());
-  Future<void> signOut() async {
-    if (!kIsWeb && _googleInitialization != null) {
-      try {
-        await _googleInitialization;
-        await GoogleSignIn.instance.signOut();
-      } catch (_) {
-        // A provider cleanup failure must not prevent Firebase logout.
-        debugPrint('Não foi possível limpar a sessão local do Google.');
-      }
-    }
-    await auth.signOut();
-  }
+  Future<void> signOut() => auth.signOut();
 }
 
 int _ageOn(DateTime birth, DateTime today) => today.year - birth.year -
@@ -123,12 +65,6 @@ int _ageOn(DateTime birth, DateTime today) => today.year - birth.year -
 
 String authErrorMessage(Object error) {
   if (error is UnsupportedError) return error.message ?? 'Plataforma não suportada.';
-  if (error is GoogleSignInException) {
-    if (error.code == GoogleSignInExceptionCode.clientConfigurationError) {
-      return 'Confira a configuração do Google: identificadores OAuth, arquivo de configuração e assinatura do app.';
-    }
-    return 'Não foi possível entrar com Google. Confira a conexão e tente novamente.';
-  }
   if (error is TimeoutException) {
     return 'A conexão demorou. Confira a internet e tente novamente.';
   }

@@ -130,7 +130,7 @@ class _AccountTypeCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: const BorderSide(
-          color: Color(0xFFE4E8EE),
+          color: Color(0xFFDCE5F1),
         ),
       ),
       child: Padding(
