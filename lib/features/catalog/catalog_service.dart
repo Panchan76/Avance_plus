@@ -19,21 +19,42 @@ class CatalogService {
     CareerRole('recepcionista', 'Recepcionista', 'Recepção, atendimento e orientação ao público.'),
     CareerRole('artesao', 'Artesão', 'Produção e reparo de peças artesanais.'),
   ];
-  Stream<List<CareerRole>> roles() => db.collection('career_roles')
-      .where('status', isEqualTo: 'approved').snapshots().map((snapshot) {
-    final roles = [...initialRoles, ...snapshot.docs.map((doc) {
-      final data = doc.data();
-      return CareerRole(doc.id, data['title'] as String, data['description'] as String);
-    })];
-    roles.sort((a,b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-    return roles;
-  });
+  Stream<List<CareerRole>> roles({bool company = false}) {
+    final query = company
+        ? db.collection('company_roles').where('companyId', isEqualTo: uid)
+        : db.collection('company_roles').where('active', isEqualTo: true);
+    return query.snapshots().map((snapshot) {
+      final byId = <String, CareerRole>{};
+      for (final doc in snapshot.docs) {
+        final d = doc.data();
+        if (d['active'] != true) continue;
+        final id = d['roleId'] as String;
+        byId[id] = CareerRole(id, d['title'] as String, d['description'] as String);
+      }
+      return byId.values.toList()..sort((a,b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    });
+  }
   Stream<QuerySnapshot<Map<String, dynamic>>> requests() => db
-      .collection('career_roles').where('requestedBy', isEqualTo: uid).snapshots();
-  Future<void> requestRole(String title, String description) => db.collection('career_roles').add({
-    'title': title.trim(), 'description': description.trim(),
-    'requestedBy': uid, 'status': 'pending', 'createdAt': FieldValue.serverTimestamp(),
-  }).then((_) {});
+      .collection('company_roles').where('companyId', isEqualTo: uid).snapshots();
+  Future<void> requestRole(String title, String description) async {
+    final normalized = title.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final legacy = initialRoles.where((r) => r.title.toLowerCase() == normalized);
+    final id = legacy.isNotEmpty ? legacy.first.id : 'custom_${Uri.encodeComponent(normalized)}';
+    final role = db.collection('career_roles').doc(id);
+    final link = db.collection('company_roles').doc('${uid}_$id');
+    await db.runTransaction((tx) async {
+      if (legacy.isEmpty) {
+        final existing = await tx.get(role);
+        if (!existing.exists) {
+          tx.set(role, {'title': title.trim(), 'description': description.trim(),
+            'requestedBy': uid, 'status': 'approved', 'createdAt': FieldValue.serverTimestamp()});
+        }
+      }
+      tx.set(link, {'companyId': uid, 'roleId': id, 'title': title.trim(),
+        'description': description.trim(), 'active': true, 'createdAt': FieldValue.serverTimestamp()});
+    });
+  }
+  Future<void> setRoleActive(String id, bool active) => db.collection('company_roles').doc(id).update({'active': active});
   Future<Map<String, dynamic>?> resume() async =>
       (await db.collection('resumes').doc(uid).get(const GetOptions(source: Source.server))
         .timeout(const Duration(seconds: 20))).data();

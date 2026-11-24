@@ -24,7 +24,7 @@ class JobCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: const BorderSide(
-            color: Color(0xFFE4E8EE),
+            color: Color(0xFFDCE5F1),
           ),
         ),
         child: InkWell(

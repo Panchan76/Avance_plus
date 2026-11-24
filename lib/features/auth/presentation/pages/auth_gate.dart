@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/auth_service.dart';
 import '../widgets/sign_out_button.dart';
 import 'welcome_page.dart';
+import 'verify_email_page.dart';
 import 'complete_profile_page.dart';
 import '../../../company/presentation/pages/company_navigation_page.dart';
 import '../../../navigation/presentation/pages/main_navigation_page.dart';
@@ -34,10 +35,57 @@ class _AuthGateState extends State<AuthGate> {
       }
       final user = snapshot.data;
       if (user == null) return const WelcomePage();
-      return _ProfileRouter(key: ValueKey(user.uid), user: user);
+      return _VerifiedAccountRouter(key: ValueKey(user.uid), user: user);
     },
   );
 }
+/// Libera somente endereços confirmados pelo Firebase Authentication.
+class _VerifiedAccountRouter extends StatefulWidget {
+  const _VerifiedAccountRouter({super.key, required this.user});
+  final User user;
+  @override
+  State<_VerifiedAccountRouter> createState() => _VerifiedAccountRouterState();
+}
+
+class _VerifiedAccountRouterState extends State<_VerifiedAccountRouter> {
+  bool _verified = false;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      await widget.user.reload();
+      // Atualiza o token usado pelas regras de segurança do Firebase.
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    } on FirebaseAuthException {
+      // The verification screen still provides a retry option.
+    } catch (_) {
+      // Network failure: do not bypass verification.
+    }
+    if (!mounted) return;
+    final current = FirebaseAuth.instance.currentUser;
+    final sameUser = current != null && current.uid == widget.user.uid;
+    setState(() {
+      _verified = sameUser && current.emailVerified;
+      _checking = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!_verified) {
+      return VerifyEmailPage(user: widget.user, onVerified: _refresh);
+    }
+    return _ProfileRouter(user: widget.user);
+  }
+}
+
 class _ProfileRouter extends StatefulWidget {
   const _ProfileRouter({super.key, required this.user});
   final User user;

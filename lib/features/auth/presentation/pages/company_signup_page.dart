@@ -1,4 +1,3 @@
-import '../widgets/google_sign_in_button.dart';
 import '../../data/auth_service.dart';
 import 'auth_gate.dart';
 import 'package:flutter/material.dart';
@@ -260,9 +259,6 @@ class _CompanySignupPageState
                         label: Text(_busy ? 'Criando conta...' : 'Cadastrar empresa'),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    GoogleSignInButton(enabled: !_busy,
-                      onBusyChanged: (busy) { if (mounted) setState(() => _busy = busy); }),
                   ],
                 ),
               ),
