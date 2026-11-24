@@ -1,5 +1,7 @@
+import 'package:avance_plus/core/theme/avance_widgets.dart';
 import '../widgets/google_sign_in_button.dart';
 import 'package:flutter/material.dart';
+import 'package:avance_plus/core/theme/app_theme.dart';
 
 import 'package:avance_plus/features/auth/presentation/pages/account_type_page.dart';
 import 'package:avance_plus/features/auth/presentation/pages/login_page.dart';
@@ -38,52 +40,16 @@ class _WelcomePageState extends State<WelcomePage> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const SizedBox(height: 32),
-
-              Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.work_outline,
-                  size: 58,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-
               const SizedBox(height: 28),
-
-              Text(
-                'Avance+',
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineLarge
-                    ?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+              const AvanceHero(
+                icon: Icons.auto_awesome_rounded,
+                title: 'Avance+',
+                subtitle: 'Seu próximo passo começa aqui. Encontre oportunidades, organize entrevistas e conte com uma assistente na sua jornada.',
               ),
-
-              const SizedBox(height: 12),
-
-              Text(
-                'Novas oportunidades para continuar avançando.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                'Encontre oportunidades profissionais, acompanhe empresas e conte com uma assistente para ajudar durante sua jornada.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-
+              const SizedBox(height: 30),
+              Text('Oportunidades para todos', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 10),
+              Text('Uma experiência simples, acolhedora e feita para você avançar.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 32),
 
               SizedBox(
@@ -130,7 +96,7 @@ class _WelcomePageState extends State<WelcomePage> {
               const SizedBox(height: 24),
 
               Text(
-                'Uma plataforma simples, acessível e segura.',
+                'Oportunidades, conexões e apoio em um só lugar.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),

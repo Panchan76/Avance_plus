@@ -20,6 +20,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with WidgetsBin
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    NotificationService.instance.start(company: false);
     _notificationSubscription = NotificationService.instance.events.listen((notification) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -31,7 +32,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with WidgetsBin
         action: SnackBarAction(label: 'VER', onPressed: () => setState(() => _index = 5)),
       ));
     });
-    NotificationService.instance.start(company: false);
   }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

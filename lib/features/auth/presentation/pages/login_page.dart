@@ -1,3 +1,4 @@
+import 'package:avance_plus/core/theme/avance_widgets.dart';
 import '../widgets/google_sign_in_button.dart';
 import '../../data/auth_service.dart';
 import 'auth_gate.dart';
@@ -93,26 +94,12 @@ class _LoginPageState extends State<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              Icon(
-                Icons.account_circle_outlined,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
+              const AvanceHero(
+                icon: Icons.lock_open_rounded,
+                title: 'Bem-vindo de volta!',
+                subtitle: 'Entre na sua conta e continue construindo seu futuro profissional.',
               ),
-
-              const SizedBox(height: 20),
-
-              Text(
-                'Bem-vindo de volta!',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Entre na sua conta para continuar.',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-
+              const SizedBox(height: 30),
               const SizedBox(height: 36),
 
               TextFormField(

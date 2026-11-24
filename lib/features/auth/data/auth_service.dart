@@ -64,8 +64,10 @@ class AuthService {
     required String name, required String role, String? cnpj, DateTime? birthDate}) async {
     final result = await auth.createUserWithEmailAndPassword(
       email: email.trim(), password: password);
-    // Authentication and Firestore are separate services. If this write fails,
-    // keep the account: AuthGate offers profile completion on the next login.
+    // Envia confirmação para novos cadastros com senha.
+    await result.user!.sendEmailVerification();
+    // Perfil reservado, mas acesso às funcionalidades depende da confirmação.
+    // O AuthGate impede a navegação até emailVerified ser verdadeiro.
     await saveProfile(result.user!, name: name, role: role, cnpj: cnpj, birthDate: birthDate);
   }
 
