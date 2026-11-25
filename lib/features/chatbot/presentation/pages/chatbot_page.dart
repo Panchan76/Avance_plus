@@ -543,10 +543,14 @@ class _ChatbotPageState extends State<ChatbotPage> {
                   ),
                   children: [
                     if (_messages.isEmpty)
-                      SizedBox(
-                        height: constraints.maxHeight > 400
-                            ? constraints.maxHeight - 40
-                            : 360,
+                      ConstrainedBox(
+                        // Keep the welcome content centered when it fits,
+                        // but let it grow and scroll on shorter screens.
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight > 40
+                              ? constraints.maxHeight - 40
+                              : 0.0,
+                        ),
                         child: _buildWelcome(colors),
                       ),
 
