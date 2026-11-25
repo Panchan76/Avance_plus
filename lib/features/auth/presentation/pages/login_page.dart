@@ -1,3 +1,4 @@
+import '../widgets/google_sign_in_button.dart';
 import 'package:avance_plus/core/theme/avance_widgets.dart';
 import '../../data/auth_service.dart';
 import 'auth_gate.dart';
@@ -74,6 +75,20 @@ class _LoginPageState extends State<LoginPage> {
         builder: (_) => const AccountTypePage(),
       ),
     );
+  }
+
+  Future<void> _googleLogin() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final signedIn = await AuthService.instance.signInWithGoogle();
+      if (signedIn && mounted) openAuthenticatedRoot(context);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authErrorMessage(error))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -180,6 +195,13 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
 
+
+              if (GoogleSignInButton.supported) ...[
+                const SizedBox(height: 16),
+                const Center(child: Text('ou')),
+                const SizedBox(height: 12),
+                GoogleSignInButton(onPressed: _busy ? null : _googleLogin),
+              ],
 
               const SizedBox(height: 28),
 
