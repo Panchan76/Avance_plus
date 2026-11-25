@@ -27,7 +27,9 @@ class AuthService {
     }
     final google = GoogleSignIn.instance;
     try {
-      await (_googleInitialization ??= google.initialize());
+      await (_googleInitialization ??= google.initialize(
+        serverClientId: '581291472838-aba4dmvbk6eqq31hulpqofl70ub1daau.apps.googleusercontent.com',
+      ));
     } catch (_) {
       _googleInitialization = null;
       rethrow;
@@ -41,6 +43,7 @@ class AuthService {
       await auth.signInWithCredential(GoogleAuthProvider.credential(idToken: token));
       return true;
     } on GoogleSignInException catch (error) {
+      debugPrint('Google Sign-In: ${error.code.name} - ${error.description}');
       if (error.code == GoogleSignInExceptionCode.canceled) return false;
       rethrow;
     }
