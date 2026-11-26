@@ -12,6 +12,9 @@ service cloud.firestore {
                 && birthDate.day() <= request.time.day())));
       }
       allow get: if verifiedOwner();
+      // O dono lê o próprio perfil mesmo antes de confirmar o e-mail (o cadastro precisa disso).
+      allow get: if owner();
+      
       // Companies register directly; CNPJ is declared, not officially verified.
       allow create: if owner()
         && request.resource.data.keys().hasAll(['uid','email','name','role','createdAt'])
@@ -37,6 +40,16 @@ service cloud.firestore {
         && request.resource.data.contactEmail is string && request.resource.data.contactEmail.size() <= 200
         && request.resource.data.updatedAt == request.time;
       allow list, delete: if false;
+      match /avatar/{photoId} {
+        allow get: if verifiedOwner() && photoId == 'current';
+        allow create, update: if verifiedOwner() && photoId == 'current'
+          && request.resource.data.keys().hasOnly(['base64','updatedAt'])
+          && request.resource.data.base64 is string
+          && request.resource.data.base64.size() > 0
+          && request.resource.data.base64.size() <= 280000
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if verifiedOwner() && photoId == 'current';
+      }
       match /notifications/{notificationId} {
         allow read: if verifiedOwner();
         allow update: if verifiedOwner()
@@ -78,6 +91,7 @@ service cloud.firestore {
         get(/databases/$(database)/documents/career_roles/$(id)).data.status == 'approved');
     }
     match /career_roles/{roleId} {
+      allow get: if signedIn() && roleId.matches('custom_.*') && !exists(/databases/$(database)/documents/career_roles/$(roleId));
       allow read: if signedIn() && (resource.data.status == 'approved' || resource.data.requestedBy == request.auth.uid);
       allow create: if hasRole('company') && !initialRole(roleId)
         && request.resource.data.keys().hasAll(['title', 'description', 'requestedBy', 'status', 'createdAt'])
@@ -87,11 +101,28 @@ service cloud.firestore {
         && request.resource.data.description is string
         && request.resource.data.description.size() >= 10 && request.resource.data.description.size() <= 1000
         && request.resource.data.requestedBy == request.auth.uid
-        && request.resource.data.status == 'pending'
+        && (request.resource.data.status == 'pending' || (roleId.matches('custom_.*') && request.resource.data.status == 'approved'))
         && request.resource.data.createdAt == request.time;
       // Approval/rejection is performed exclusively via the administrative console.
       // Client apps cannot change status, even for the requesting company.
       allow update, delete: if false;
+    }
+    match /company_roles/{linkId} {
+      function validLink() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['companyId','roleId','title','description','active','createdAt'])
+          && d.companyId == request.auth.uid && d.roleId is string
+          && linkId == request.auth.uid + '_' + d.roleId
+          && d.title is string && d.title.size() >= 3 && d.title.size() <= 80
+          && d.description is string && d.description.size() >= 10 && d.description.size() <= 1000
+          && d.active is bool && d.createdAt == request.time
+          && (initialRole(d.roleId) || getAfter(/databases/$(database)/documents/career_roles/$(d.roleId)).data.status == 'approved');
+      }
+      allow read: if signedIn() && (resource.data.active == true || resource.data.companyId == request.auth.uid);
+      allow create: if hasRole('company') && validLink();
+      allow update: if hasRole('company') && resource.data.companyId == request.auth.uid
+        && (validLink() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']) && request.resource.data.active is bool));
+      allow delete: if false;
     }
     match /resumes/{userId} {
       function owner() { return signedIn() && request.auth.uid == userId && hasRole('candidate'); }

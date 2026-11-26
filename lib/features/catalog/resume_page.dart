@@ -15,6 +15,7 @@ class _ResumePageState extends State<ResumePage> {
   late final _roles = CatalogService.instance.roles();
   bool _loading = true, _busy = false, _shared = false;
   String? _error;
+  String _search = '';
   @override
   void initState() { super.initState(); _load(); }
   Future<void> _load() async {
@@ -39,10 +40,6 @@ class _ResumePageState extends State<ResumePage> {
   void dispose() { for (final field in _fields.values) { field.dispose(); } super.dispose(); }
   Future<void> _save(List<CareerRole> roles) async {
     if (_busy || !_form.currentState!.validate()) return;
-    final allowed = roles.map((role) => role.id).toSet();
-    if (_selected.any((id) => !allowed.contains(id))) {
-      _message('Remova os cargos indisponíveis antes de salvar.'); return;
-    }
     if (_shared && _selected.isEmpty) { _message('Selecione ao menos um cargo para divulgar seu currículo.'); return; }
     setState(() => _busy = true);
     try {
@@ -77,14 +74,16 @@ class _ResumePageState extends State<ResumePage> {
             _field('education', 'Formação e cursos', 2000, lines: 3),
             _field('skills', 'Habilidades', 2000, lines: 3),
             Text('Cargos de interesse (${_selected.length}/5)', style: Theme.of(context).textTheme.titleLarge),
-            for (final role in roles) CheckboxListTile(contentPadding: EdgeInsets.zero,
+            TextField(decoration: const InputDecoration(labelText: 'Buscar cargos disponíveis', prefixIcon: Icon(Icons.search)), onChanged: (value) => setState(() => _search = value.toLowerCase().trim())),
+            if (roles.isEmpty) const Text('Nenhuma empresa oferece cargos no momento.'),
+            for (final role in roles.where((r) => _selected.contains(r.id) || r.title.toLowerCase().contains(_search))) CheckboxListTile(contentPadding: EdgeInsets.zero,
               title: Text(role.title), value: _selected.contains(role.id),
               onChanged: _busy ? null : (checked) {
                 if (checked == true && _selected.length >= 5) { _message('Você pode escolher até 5 cargos.'); return; }
                 setState(() { checked == true ? _selected.add(role.id) : _selected.remove(role.id); });
               }),
             for (final id in _selected.where((id) => !roles.any((role) => role.id == id)).toList())
-              ListTile(title: const Text('Cargo indisponível'), trailing: TextButton(
+              ListTile(title: Text('Cargo sem oferta atual: $id'), trailing: TextButton(
                 onPressed: _busy ? null : () => setState(() => _selected.remove(id)), child: const Text('Remover'))),
             SwitchListTile(contentPadding: EdgeInsets.zero,
               title: const Text('Disponibilizar meu currículo às empresas'),

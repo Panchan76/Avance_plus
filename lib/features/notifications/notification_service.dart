@@ -5,12 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AppNotification {
   AppNotification({required this.id, required this.title, required this.body,
-    required this.type, DateTime? createdAt}) : createdAt = createdAt ?? DateTime.now();
+    required this.type, this.conversationId, DateTime? createdAt}) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
   final String title;
   final String body;
   final String type;
+  /// Conversa relacionada: o aviso leva direto para ela ao ser tocado.
+  final String? conversationId;
   final DateTime createdAt;
   bool read = false;
 }
@@ -41,13 +43,15 @@ class NotificationService {
   Stream<AppNotification> get events => _events.stream;
   Stream<List<AppNotification>> get notifications => _changes.stream;
   List<AppNotification> get current => List.unmodifiable(_items);
+  bool get isCompany => _company;
   int get unreadCount => _items.where((item) => !item.read).length;
 
-  void _publish(AppNotification item) {
+  void _publish(AppNotification item, {bool popup = true}) {
     if (_items.any((existing) => existing.id == item.id)) return;
     _items.insert(0, item);
     if (_items.length > 100) _items.removeLast();
-    _events.add(item);
+    // O aviso rápido na tela só aparece com o app aberto; a lista guarda sempre.
+    if (popup) _events.add(item);
     _changes.add(List.unmodifiable(_items));
   }
 
@@ -56,6 +60,13 @@ class NotificationService {
   void _notify(String id, String title, String body, String type) {
     if (!_appActive) return;
     _publish(AppNotification(id: id, title: title, body: body, type: type));
+
+  void _notify(String id, String title, String body, String type, {String? conversationId}) {
+    // Antes, avisos que chegavam com o app em segundo plano eram descartados.
+    // Agora ficam guardados na lista e no contador do sino.
+    _publish(AppNotification(id: id, title: title, body: body, type: type,
+        conversationId: conversationId), popup: _appActive);
+
   }
 
   void markRead(String id) {
@@ -91,7 +102,12 @@ class NotificationService {
         if (change.type == DocumentChangeType.added) {
           if (!_firstConversationsSnapshot) {
             _notify('conversation_$id', 'Nova conversa',
+
               '${company ? data['candidateName'] : data['companyName']} iniciou uma conversa com você.', 'conversation');
+
+              '${company ? data['candidateName'] : data['companyName']} iniciou uma conversa com você.', 'conversation',
+              conversationId: id);
+
           }
           _knownConversationIds.add(id);
           _watchMessages(id, data);
@@ -118,7 +134,8 @@ class NotificationService {
           'reschedule_requested' => 'Foi solicitada uma alteração na data da entrevista.',
           _ => 'Os dados de uma entrevista foram atualizados.',
         };
-        _notify('interview_${change.doc.id}_${data['revision'] ?? 0}', title, statusText, 'interview');
+        _notify('interview_${change.doc.id}_${data['revision'] ?? 0}', title, statusText, 'interview',
+            conversationId: data['conversationId'] as String?);
       }
       _firstInterviewsSnapshot = false;
     }, onError: (Object error) {}));
@@ -198,7 +215,12 @@ class NotificationService {
             ? conversation['companyName'] : conversation['candidateName'];
         final text = (data['text'] as String? ?? '').trim();
         _notify('message_${change.doc.id}', 'Nova mensagem',
+
           '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message');
+
+          '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message',
+          conversationId: conversationId);
+
       }
       firstSnapshot = false;
     }, onError: (Object error) {});

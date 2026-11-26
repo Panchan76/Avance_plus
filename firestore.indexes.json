@@ -15,5 +15,11 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "avatar",
+      "fieldPath": "base64",
+      "indexes": []
+    }
+  ]
 }

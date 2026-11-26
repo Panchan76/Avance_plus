@@ -10,7 +10,7 @@ class CatalogPage extends StatefulWidget {
   State<CatalogPage> createState() => _CatalogPageState();
 }
 class _CatalogPageState extends State<CatalogPage> {
-  late final _roles = CatalogService.instance.roles();
+  late final _roles = CatalogService.instance.roles(company: widget.company);
   late final _resume = widget.company ? null : CatalogService.instance.watchResume();
   String _search = '';
   String? _sending;
@@ -36,9 +36,9 @@ class _CatalogPageState extends State<CatalogPage> {
     crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Catálogo de cargos', style: Theme.of(context).textTheme.headlineMedium),
       const SizedBox(height: 8),
-      Text(widget.company ? 'Cargos disponíveis para buscar candidatos. Novos cargos passam por aprovação.' : 'Envie seu currículo para os cargos de interesse. Para criar ou editar, acesse Perfil > Currículo.'),
-      if (widget.company) OutlinedButton.icon(icon: const Icon(Icons.add), label: const Text('Solicitar novo cargo / acompanhar pedidos'),
-        onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Solicitações de cargos')), body: const RoleRequestsPage())))),
+      Text(widget.company ? 'Cadastre os cargos oferecidos pela sua empresa para encontrar candidatos.' : 'Envie seu currículo para os cargos de interesse. Para criar ou editar, acesse Perfil > Currículo.'),
+      if (widget.company) OutlinedButton.icon(icon: const Icon(Icons.add), label: const Text('Cadastrar / gerenciar cargos'),
+        onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => Scaffold(appBar: AppBar(title: const Text('Meus cargos')), body: const RoleRequestsPage())))),
       const SizedBox(height: 12),
       TextField(decoration: const InputDecoration(labelText: 'Buscar cargo', prefixIcon: Icon(Icons.search)),
         onChanged: (value) => setState(() => _search = value.toLowerCase().trim())),
@@ -52,7 +52,7 @@ class _CatalogPageState extends State<CatalogPage> {
           if (snapshot.hasError) return Center(child: Text(authErrorMessage(snapshot.error!)));
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final roles = snapshot.data!.where((role) => role.title.toLowerCase().contains(_search)).toList();
-          if (roles.isEmpty) return const Center(child: Text('Nenhum cargo encontrado.'));
+          if (roles.isEmpty) return Center(child: Text(widget.company ? 'Nenhum cargo ativo. Use Cadastrar / gerenciar cargos para começar.' : 'Nenhum cargo disponível no momento.')); 
           return ListView.separated(itemCount: roles.length, separatorBuilder: (_, _) => const SizedBox(height: 12), itemBuilder: (context, i) {
             final role = roles[i], sent = sentIds.contains(roles[i].id);
             return Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
-import '../../../auth/data/auth_service.dart';
 import '../../domain/services/assistant_engine.dart';
 
 class ChatbotPage extends StatefulWidget {
@@ -113,7 +112,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
       if (!mounted) return;
 
       setState(() {
-        _error = authErrorMessage(error);
+        _error = error is AssistantException
+            ? error.message
+            : 'Não consegui falar com o assistente agora. '
+                'Toque em "Tentar novamente".';
       });
     } finally {
       if (mounted) {
@@ -482,6 +484,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
                 decoration: InputDecoration(
+                  counterText: '',
                   hintText: 'Digite sua pergunta aqui...',
                    hintStyle: TextStyle(fontSize: _fontSize),
                   filled: true,
@@ -540,10 +543,21 @@ class _ChatbotPageState extends State<ChatbotPage> {
                   ),
                   children: [
                     if (_messages.isEmpty)
+
                       SizedBox(
                         height: constraints.maxHeight > 400
                             ? constraints.maxHeight - 40
                             : 360,
+
+                      ConstrainedBox(
+                        // Keep the welcome content centered when it fits,
+                        // but let it grow and scroll on shorter screens.
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight > 40
+                              ? constraints.maxHeight - 40
+                              : 0.0,
+                        ),
+
                         child: _buildWelcome(colors),
                       ),
 

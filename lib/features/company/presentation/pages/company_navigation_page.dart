@@ -34,7 +34,7 @@ class _CompanyNavigationPageState
           Text(notification.title, style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(notification.body, maxLines: 2, overflow: TextOverflow.ellipsis),
         ]),
-        action: SnackBarAction(label: 'VER', onPressed: () => setState(() => selectedIndex = 5)),
+        action: SnackBarAction(label: 'VER', onPressed: () { if (mounted) openNotificationTarget(context, notification); }),
       ));
     });
   }
@@ -51,12 +51,15 @@ class _CompanyNavigationPageState
     ConversationsPage(company: true),
     AgendaPage(company: true),
     ProfilePage(),
-    NotificationsPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Avance+'),
+        actions: const [NotificationBellButton(), SizedBox(width: 8)],
+      ),
       body: pages[selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
@@ -83,7 +86,6 @@ class _CompanyNavigationPageState
             selectedIcon: Icon(Icons.business),
             label: 'Perfil',
           ),
-          NavigationDestination(icon: const NotificationBadgeIcon(), label: 'Avisos'),
         ],
       ),
     );

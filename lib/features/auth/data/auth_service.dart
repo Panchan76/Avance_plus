@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -10,49 +10,42 @@ class AuthService {
   final db = FirebaseFirestore.instance;
 
   Future<void>? _googleInitialization;
-  bool _googleBusy = false;
-
-  static bool get supportsGoogleSignIn => kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.macOS;
 
   Future<bool> signInWithGoogle() async {
-    if (_googleBusy) return false;
-    _googleBusy = true;
-    try {
-      if (kIsWeb) {
-        // Call the popup directly from the click handler; do not await setup first.
-        final provider = GoogleAuthProvider()
-          ..setCustomParameters({'prompt': 'select_account'});
+    if (kIsWeb) {
+      final provider = GoogleAuthProvider()..setCustomParameters({'prompt': 'select_account'});
+      try {
         await auth.signInWithPopup(provider);
-      } else {
-        if (!supportsGoogleSignIn) {
-          throw UnsupportedError('Use o navegador ou um dispositivo Android/iOS para entrar com Google.');
-        }
-        final google = GoogleSignIn.instance;
-        await (_googleInitialization ??= google.initialize());
-        final account = await google.authenticate();
-        final idToken = account.authentication.idToken;
-        if (idToken == null) {
-          throw FirebaseAuthException(code: 'google-token-missing',
-            message: 'O Google não retornou o token de autenticação.');
-        }
-        await auth.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
+        return true;
+      } on FirebaseAuthException catch (error) {
+        if (error.code == 'popup-closed-by-user' || error.code == 'cancelled-popup-request') return false;
+        rethrow;
       }
-      // AuthGate loads the existing UID profile or asks to complete a new one.
+    }
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      throw UnsupportedError('Use o navegador para entrar com Google nesta plataforma.');
+    }
+    final google = GoogleSignIn.instance;
+    try {
+      await (_googleInitialization ??= google.initialize(
+        serverClientId: '581291472838-aba4dmvbk6eqq31hulpqofl70ub1daau.apps.googleusercontent.com',
+      ));
+    } catch (_) {
+      _googleInitialization = null;
+      rethrow;
+    }
+    try {
+      final account = await google.authenticate();
+      final token = account.authentication.idToken;
+      if (token == null) {
+        throw FirebaseAuthException(code: 'google-token-missing');
+      }
+      await auth.signInWithCredential(GoogleAuthProvider.credential(idToken: token));
       return true;
     } on GoogleSignInException catch (error) {
+      debugPrint('Google Sign-In: ${error.code.name} - ${error.description}');
       if (error.code == GoogleSignInExceptionCode.canceled) return false;
       rethrow;
-    } on FirebaseAuthException catch (error) {
-      if (error.code == 'popup-closed-by-user' ||
-          error.code == 'cancelled-popup-request' || error.code == 'web-context-canceled') {
-        return false;
-      }
-      rethrow;
-    } finally {
-      _googleBusy = false;
     }
   }
 
@@ -107,13 +100,11 @@ class AuthService {
   Future<void> resetPassword(String email) =>
       auth.sendPasswordResetEmail(email: email.trim());
   Future<void> signOut() async {
-    if (!kIsWeb && _googleInitialization != null) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && _googleInitialization != null) {
       try {
-        await _googleInitialization;
         await GoogleSignIn.instance.signOut();
       } catch (_) {
-        // A provider cleanup failure must not prevent Firebase logout.
-        debugPrint('Não foi possível limpar a sessão local do Google.');
+        // Firebase sign-out must still happen.
       }
     }
     await auth.signOut();
@@ -124,13 +115,8 @@ int _ageOn(DateTime birth, DateTime today) => today.year - birth.year -
     ((today.month < birth.month || (today.month == birth.month && today.day < birth.day)) ? 1 : 0);
 
 String authErrorMessage(Object error) {
+  if (error is GoogleSignInException) return 'Não foi possível entrar com Google (${error.code.name}). Confira a configuração OAuth e tente novamente.';
   if (error is UnsupportedError) return error.message ?? 'Plataforma não suportada.';
-  if (error is GoogleSignInException) {
-    if (error.code == GoogleSignInExceptionCode.clientConfigurationError) {
-      return 'Confira a configuração do Google: identificadores OAuth, arquivo de configuração e assinatura do app.';
-    }
-    return 'Não foi possível entrar com Google. Confira a conexão e tente novamente.';
-  }
   if (error is TimeoutException) {
     return 'A conexão demorou. Confira a internet e tente novamente.';
   }

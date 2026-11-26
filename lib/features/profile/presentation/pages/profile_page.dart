@@ -42,7 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       if (remove) { await ProfileService.instance.removePhoto(); }
       else {
-        final file = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+        final file = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512, imageQuality: 75);
         if (file == null || !mounted) return;
         await ProfileService.instance.uploadPhoto(file);
       }

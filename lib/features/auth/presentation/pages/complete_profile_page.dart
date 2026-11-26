@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/auth_service.dart';
+import '../../data/cnpj_validator.dart';
 import '../widgets/sign_out_button.dart';
 
 int _ageOn(DateTime birth, DateTime today) => today.year - birth.year -
@@ -64,7 +65,7 @@ class _CompleteProfilePageState extends State<CompleteProfilePage> {
             validator: (value) => (value ?? '').trim().length < 3 ? 'Informe o nome.' : null),
           if (_role == 'company') TextFormField(controller: _cnpj, enabled: !_busy, maxLength: 32,
             decoration: const InputDecoration(labelText: 'CNPJ'),
-            validator: (value) => (value ?? '').trim().isEmpty ? 'Informe o CNPJ.' : null),
+            validator: validateCnpjField),
           if (_role == 'candidate') ...[
             const SizedBox(height: 16),
             FormField<DateTime>(

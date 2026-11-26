@@ -24,7 +24,7 @@ class _RoleRequestsPageState extends State<RoleRequestsPage> {
       await CatalogService.instance.requestRole(_title.text, _description.text);
       if (!mounted) return;
       _title.clear(); _description.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Solicitação enviada para aprovação.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cargo cadastrado.')));
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(authErrorMessage(error))));
     } finally { if (mounted) setState(() => _busy = false); }
@@ -32,9 +32,9 @@ class _RoleRequestsPageState extends State<RoleRequestsPage> {
   @override
   Widget build(BuildContext context) => SafeArea(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: Column(
     crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('Solicitar novo cargo', style: Theme.of(context).textTheme.headlineMedium),
+      Text('Cadastrar cargo', style: Theme.of(context).textTheme.headlineMedium),
       const SizedBox(height: 12),
-      const Text('Confira primeiro o catálogo. Se o cargo ainda não existir, solicite a inclusão. Ele aparecerá para todos somente após aprovação.'),
+      const Text('Cadastre os cargos que sua empresa oferece. Você pode desativá-los quando quiser.'),
       const SizedBox(height: 20),
       Form(key: _form, child: Column(children: [
         TextFormField(controller: _title, enabled: !_busy, maxLength: 80,
@@ -45,19 +45,23 @@ class _RoleRequestsPageState extends State<RoleRequestsPage> {
           decoration: const InputDecoration(labelText: 'Descreva as atividades', alignLabelWithHint: true),
           validator: (value) => (value ?? '').trim().length < 10 ? 'Descreva as atividades com pelo menos 10 caracteres.' : null),
         const SizedBox(height: 12),
-        SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _busy ? null : _send, child: Text(_busy ? 'Enviando...' : 'Enviar para aprovação'))),
+        SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _busy ? null : _send, child: Text(_busy ? 'Enviando...' : 'Cadastrar cargo'))),
       ])),
       const SizedBox(height: 28),
-      Text('Minhas solicitações', style: Theme.of(context).textTheme.titleLarge),
+      Text('Meus cargos', style: Theme.of(context).textTheme.titleLarge),
       StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(stream: _requests, builder: (context, snapshot) {
         if (snapshot.hasError) return Text(authErrorMessage(snapshot.error!));
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final docs = [...snapshot.data!.docs]..sort((a,b) => ((b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0).compareTo((a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0));
-        if (docs.isEmpty) return const Padding(padding: EdgeInsets.all(16), child: Text('Você ainda não enviou solicitações.'));
+        if (docs.isEmpty) return const Padding(padding: EdgeInsets.all(16), child: Text('Você ainda não cadastrou cargos.'));
         return Column(children: docs.map((doc) {
           final d = doc.data();
-          final label = {'pending': 'Aguardando aprovação', 'approved': 'Aprovado', 'rejected': 'Não aprovado'}[d['status']] ?? 'Em análise';
-          return Card(child: ListTile(title: Text(d['title'] as String), subtitle: Text('$label${d['reviewNote'] == null ? "" : "\n${d['reviewNote']}"}')));
+          return Card(child: SwitchListTile(title: Text(d['title'] as String),
+            subtitle: Text(d['description'] as String), value: d['active'] == true,
+            onChanged: (value) async {
+              try { await CatalogService.instance.setRoleActive(doc.id, value); }
+              catch (error) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(authErrorMessage(error)))); }
+            }));
         }).toList());
       }),
     ],
@@ -70,7 +74,7 @@ class CandidatesPage extends StatefulWidget {
   State<CandidatesPage> createState() => _CandidatesPageState();
 }
 class _CandidatesPageState extends State<CandidatesPage> {
-  late final _roles = CatalogService.instance.roles();
+  late final _roles = CatalogService.instance.roles(company: true);
   String? _roleId;
   @override
   Widget build(BuildContext context) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(

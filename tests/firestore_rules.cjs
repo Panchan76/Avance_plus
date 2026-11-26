@@ -33,6 +33,12 @@ const {doc, collection, setDoc, getDoc, getDocs, query, where, updateDoc, server
     await assertSucceeds(getDocs(query(collection(company,'career_roles'),where('requestedBy','==','company-a'))));
     await assertSucceeds(getDocs(query(collection(candidate,'career_roles'),where('status','==','approved'))));
     await assertFails(getDocs(collection(candidate,'career_roles')));
+    const avatar = {base64:'YWJj',updatedAt:serverTimestamp()};
+    await assertSucceeds(setDoc(doc(candidate,'users','candidate-a','avatar','current'),avatar));
+    await assertSucceeds(getDoc(doc(candidate,'users','candidate-a','avatar','current')));
+    await assertFails(getDoc(doc(other,'users','candidate-a','avatar','current')));
+    await assertFails(setDoc(doc(other,'users','candidate-a','avatar','current'),avatar));
+    await assertFails(setDoc(doc(candidate,'users','candidate-a','avatar','current'),{...avatar,base64:'a'.repeat(280001)}));
     const resume = {uid:'candidate-a',name:'Pessoa candidata',email:'pessoa@example.com',phone:'',city:'Recife / PE',
       summary:'Minha apresentação',experience:'Minha experiência',education:'Meus cursos',skills:'Minhas habilidades',
       roleIds:['jardineiro','approved-custom'],shared:true,updatedAt:serverTimestamp()};

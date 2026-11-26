@@ -1,7 +1,13 @@
 import 'package:avance_plus/core/theme/avance_widgets.dart';
 import '../widgets/google_sign_in_button.dart';
+import 'package:avance_plus/core/theme/avance_widgets.dart';
 import 'package:flutter/material.dart';
+
 import 'package:avance_plus/core/theme/app_theme.dart';
+
+import '../../data/auth_service.dart';
+import 'auth_gate.dart';
+
 
 import 'package:avance_plus/features/auth/presentation/pages/account_type_page.dart';
 import 'package:avance_plus/features/auth/presentation/pages/login_page.dart';
@@ -30,6 +36,20 @@ class _WelcomePageState extends State<WelcomePage> {
         builder: (_) => const AccountTypePage(),
       ),
     );
+  }
+
+  Future<void> _googleLogin() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final signedIn = await AuthService.instance.signInWithGoogle();
+      if (signedIn && mounted) openAuthenticatedRoot(context);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authErrorMessage(error))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -89,9 +109,12 @@ class _WelcomePageState extends State<WelcomePage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
-              GoogleSignInButton(enabled: !_busy,
-                onBusyChanged: (busy) { if (mounted) setState(() => _busy = busy); }),
+              if (GoogleSignInButton.supported) ...[
+                const SizedBox(height: 16),
+                const Center(child: Text('ou')),
+                const SizedBox(height: 12),
+                GoogleSignInButton(onPressed: _busy ? null : _googleLogin),
+              ],
 
               const SizedBox(height: 24),
 
