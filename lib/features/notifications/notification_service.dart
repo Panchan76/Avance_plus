@@ -57,11 +57,16 @@ class NotificationService {
 
   void setAppActive(bool active) { _appActive = active; }
 
+  void _notify(String id, String title, String body, String type) {
+    if (!_appActive) return;
+    _publish(AppNotification(id: id, title: title, body: body, type: type));
+
   void _notify(String id, String title, String body, String type, {String? conversationId}) {
     // Antes, avisos que chegavam com o app em segundo plano eram descartados.
     // Agora ficam guardados na lista e no contador do sino.
     _publish(AppNotification(id: id, title: title, body: body, type: type,
         conversationId: conversationId), popup: _appActive);
+
   }
 
   void markRead(String id) {
@@ -97,8 +102,12 @@ class NotificationService {
         if (change.type == DocumentChangeType.added) {
           if (!_firstConversationsSnapshot) {
             _notify('conversation_$id', 'Nova conversa',
+
+              '${company ? data['candidateName'] : data['companyName']} iniciou uma conversa com você.', 'conversation');
+
               '${company ? data['candidateName'] : data['companyName']} iniciou uma conversa com você.', 'conversation',
               conversationId: id);
+
           }
           _knownConversationIds.add(id);
           _watchMessages(id, data);
@@ -206,8 +215,12 @@ class NotificationService {
             ? conversation['companyName'] : conversation['candidateName'];
         final text = (data['text'] as String? ?? '').trim();
         _notify('message_${change.doc.id}', 'Nova mensagem',
+
+          '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message');
+
           '${sender ?? 'Você recebeu uma mensagem'}: ${text.length > 100 ? '${text.substring(0, 97)}...' : text}', 'message',
           conversationId: conversationId);
+
       }
       firstSnapshot = false;
     }, onError: (Object error) {});

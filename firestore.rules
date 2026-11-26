@@ -11,8 +11,10 @@ service cloud.firestore {
               || (birthDate.month() == request.time.month()
                 && birthDate.day() <= request.time.day())));
       }
+      allow get: if verifiedOwner();
       // O dono lê o próprio perfil mesmo antes de confirmar o e-mail (o cadastro precisa disso).
       allow get: if owner();
+      
       // Companies register directly; CNPJ is declared, not officially verified.
       allow create: if owner()
         && request.resource.data.keys().hasAll(['uid','email','name','role','createdAt'])
@@ -149,7 +151,7 @@ service cloud.firestore {
       }
       allow get: if owner() || (hasRole('company') && resource.data.shared == true);
       allow list: if hasRole('company') && resource.data.shared == true;
-      allow create, update: if owner() && validResume();
+      allow create, update: if verifiedOwner() && validResume();
       allow delete: if owner();
     }
 
